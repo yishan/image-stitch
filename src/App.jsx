@@ -10,7 +10,7 @@ function App() {
   const [settings, setSettings] = useState({
     direction: 'horizontal', // 'horizontal' | 'vertical'
     gap: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(0, 0, 0, 0)',
     scale: 1
   });
 
@@ -42,6 +42,11 @@ function App() {
       }
       return newImages;
     });
+  };
+
+  const handleReset = () => {
+    images.forEach(img => URL.revokeObjectURL(img.url));
+    setImages([]);
   };
 
   const handleDragEnd = (event) => {
@@ -78,8 +83,8 @@ function App() {
       <div className="app-content">
         <div className="left-panel">
           <header className="app-header">
-            <h1>Image Stitcher</h1>
-            <p>Stitch multiple images into one seamless image.</p>
+            <h1>图片拼接助手</h1>
+            <p>将多张图片无缝拼接成一张长图。</p>
           </header>
 
           <div className="input-section">
@@ -89,19 +94,19 @@ function App() {
               <>
                 <div className="settings-panel">
                   <div className="setting-group">
-                    <label>Direction:</label>
+                    <label>方向：</label>
                     <div className="toggle-group">
                       <button
                         className={settings.direction === 'horizontal' ? 'active' : ''}
                         onClick={() => setSettings(s => ({ ...s, direction: 'horizontal' }))}
                       >
-                        Horizontal
+                        横向
                       </button>
                       <button
                         className={settings.direction === 'vertical' ? 'active' : ''}
                         onClick={() => setSettings(s => ({ ...s, direction: 'vertical' }))}
                       >
-                        Vertical
+                        纵向
                       </button>
                     </div>
                   </div>
@@ -111,6 +116,7 @@ function App() {
                   images={images}
                   onRemoveImage={handleRemoveImage}
                   onDragEnd={handleDragEnd}
+                  onReset={handleReset}
                 />
               </>
             )}
@@ -122,7 +128,7 @@ function App() {
             <StitchCanvas images={images} settings={settings} />
           ) : (
             <div className="empty-state">
-              <p>Upload images to see the preview here</p>
+              <p>上传图片以在此处预览</p>
             </div>
           )}
         </div>

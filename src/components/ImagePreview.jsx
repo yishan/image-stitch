@@ -51,7 +51,7 @@ const SortableItem = ({ image, index, onRemoveImage }) => {
                         e.stopPropagation();
                         onRemoveImage(image.id);
                     }}
-                    title="Remove image"
+                    title="移除图片"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -64,7 +64,7 @@ const SortableItem = ({ image, index, onRemoveImage }) => {
     );
 };
 
-const ImagePreview = ({ images, onRemoveImage, onDragEnd }) => {
+const ImagePreview = ({ images, onRemoveImage, onDragEnd, onReset }) => {
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
@@ -77,8 +77,13 @@ const ImagePreview = ({ images, onRemoveImage, onDragEnd }) => {
     return (
         <div className="preview-container">
             <div className="preview-header">
-                <h3>Selected Images ({images.length}/5)</h3>
-                <p>Drag to reorder</p>
+                <div className="header-left">
+                    <h3>已选图片 ({images.length}/5)</h3>
+                    <p>拖拽以重新排序</p>
+                </div>
+                <button className="reset-btn" onClick={onReset} title="清空所有图片">
+                    清空
+                </button>
             </div>
 
             <DndContext

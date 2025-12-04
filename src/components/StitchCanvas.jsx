@@ -99,11 +99,11 @@ const StitchCanvas = ({ images, settings }) => {
                         [blob.type]: blob
                     })
                 ]);
-                alert('Image copied to clipboard!');
+                alert('图片已复制到剪贴板！');
             });
         } catch (err) {
             console.error('Failed to copy: ', err);
-            alert('Failed to copy image to clipboard.');
+            alert('复制图片失败。');
         }
     };
 
@@ -116,16 +116,16 @@ const StitchCanvas = ({ images, settings }) => {
                 {canvasUrl ? (
                     <img src={canvasUrl} alt="Stitched Result" className="result-image" />
                 ) : (
-                    <div className="loading">Stitching...</div>
+                    <div className="loading">拼接中...</div>
                 )}
             </div>
 
             <div className="actions">
                 <button className="action-btn secondary" onClick={handleCopy} disabled={!canvasUrl}>
-                    Copy to Clipboard
+                    复制到剪贴板
                 </button>
                 <button className="action-btn primary" onClick={handleDownload} disabled={!canvasUrl}>
-                    Download Image
+                    下载图片
                 </button>
             </div>
         </div>
