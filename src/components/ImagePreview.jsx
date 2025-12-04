@@ -78,7 +78,7 @@ const ImagePreview = ({ images, onRemoveImage, onDragEnd, onReset }) => {
         <div className="preview-container">
             <div className="preview-header">
                 <div className="header-left">
-                    <h3>已选图片 ({images.length}/5)</h3>
+                    <h3>已选图片 ({images.length}/6)</h3>
                     <p>拖拽以重新排序</p>
                 </div>
                 <button className="reset-btn" onClick={onReset} title="清空所有图片">

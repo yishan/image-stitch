@@ -76,7 +76,7 @@ const ImageUploader = ({ onImagesUpload }) => {
                     </svg>
                 </div>
                 <h3>上传图片</h3>
-                <p>拖拽最多 5 张图片到此处，或点击选择</p>
+                <p>拖拽最多 6 张图片到此处，或点击选择</p>
                 <span className="sub-text">支持粘贴图片 (Ctrl+V)</span>
             </div>
         </div>

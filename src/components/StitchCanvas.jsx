@@ -31,9 +31,22 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
                 if (direction === 'horizontal') {
                     totalWidth = loadedImages.reduce((sum, img) => sum + img.width, 0) + (gap * (loadedImages.length - 1));
                     totalHeight = Math.max(...loadedImages.map(img => img.height));
-                } else {
+                } else if (direction === 'vertical') {
                     totalWidth = Math.max(...loadedImages.map(img => img.width));
                     totalHeight = loadedImages.reduce((sum, img) => sum + img.height, 0) + (gap * (loadedImages.length - 1));
+                } else if (direction === 'collage') {
+                    // 2 rows, 3 images per row
+                    const row1 = loadedImages.slice(0, 3);
+                    const row2 = loadedImages.slice(3, 6);
+
+                    const row1Width = row1.reduce((sum, img) => sum + img.width, 0) + (gap * Math.max(0, row1.length - 1));
+                    const row1Height = row1.length > 0 ? Math.max(...row1.map(img => img.height)) : 0;
+
+                    const row2Width = row2.reduce((sum, img) => sum + img.width, 0) + (gap * Math.max(0, row2.length - 1));
+                    const row2Height = row2.length > 0 ? Math.max(...row2.map(img => img.height)) : 0;
+
+                    totalWidth = Math.max(row1Width, row2Width);
+                    totalHeight = row1Height + (row2.length > 0 ? gap : 0) + row2Height;
                 }
 
                 // Apply scale (optional, but good for performance if images are huge)
@@ -58,11 +71,44 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
                         const yOffset = (totalHeight - img.height) / 2;
                         ctx.drawImage(img, currentX, yOffset);
                         currentX += img.width + gap;
-                    } else {
+                    } else if (direction === 'vertical') {
                         // Center horizontally if widths differ
                         const xOffset = (totalWidth - img.width) / 2;
                         ctx.drawImage(img, xOffset, currentY);
                         currentY += img.height + gap;
+                    } else if (direction === 'collage') {
+                        // Determine which row this image belongs to
+                        const isRow1 = index < 3;
+                        const rowImages = isRow1 ? loadedImages.slice(0, 3) : loadedImages.slice(3, 6);
+                        const rowIndex = isRow1 ? index : index - 3;
+
+                        // Calculate row height for vertical centering within the row
+                        const rowHeight = Math.max(...rowImages.map(i => i.height));
+
+                        // Calculate Y position
+                        let yPos = 0;
+                        if (!isRow1) {
+                            const row1Height = Math.max(...loadedImages.slice(0, 3).map(i => i.height));
+                            yPos = row1Height + gap;
+                        }
+
+                        // Calculate X position
+                        // We need to know the X position of this specific image in its row
+                        // It depends on the widths of previous images in the same row
+                        let xPos = 0;
+                        for (let i = 0; i < rowIndex; i++) {
+                            xPos += rowImages[i].width + gap;
+                        }
+
+                        // Center vertically within the row
+                        const yOffset = yPos + (rowHeight - img.height) / 2;
+
+                        // Center the row horizontally in the total width?
+                        // For now, let's just align left. To center the row:
+                        const rowWidth = rowImages.reduce((sum, i) => sum + i.width, 0) + (gap * (rowImages.length - 1));
+                        const rowXOffset = (totalWidth - rowWidth) / 2;
+
+                        ctx.drawImage(img, xPos + rowXOffset, yOffset);
                     }
                 });
 
@@ -122,7 +168,7 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
 
             <div className="actions">
                 <div className="setting-group" style={{ marginRight: 'auto' }}>
-                    <label>方向：</label>
+
                     <div className="toggle-group">
                         <button
                             className={settings.direction === 'horizontal' ? 'active' : ''}
@@ -135,6 +181,12 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
                             onClick={() => onDirectionChange('vertical')}
                         >
                             纵向
+                        </button>
+                        <button
+                            className={settings.direction === 'collage' ? 'active' : ''}
+                            onClick={() => onDirectionChange('collage')}
+                        >
+                            网格
                         </button>
                     </div>
                 </div>

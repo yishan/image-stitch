@@ -31,10 +31,10 @@ function App() {
   };
 
   const handleImagesUpload = useCallback((newFiles) => {
-    if (images.length + newFiles.length > 5) {
-      alert('You can only upload up to 5 images.');
-      // Optionally slice the array to fit 5
-      const remainingSlots = 5 - images.length;
+    if (images.length + newFiles.length > 6) {
+      alert('You can only upload up to 6 images.');
+      // Optionally slice the array to fit 6
+      const remainingSlots = 6 - images.length;
       if (remainingSlots <= 0) return;
       newFiles = newFiles.slice(0, remainingSlots);
     }
