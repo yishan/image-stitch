@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import './StitchCanvas.css';
 
-const StitchCanvas = ({ images, settings }) => {
+const StitchCanvas = ({ images, settings, onDirectionChange }) => {
     const canvasRef = useRef(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [canvasUrl, setCanvasUrl] = useState(null);
@@ -121,6 +121,24 @@ const StitchCanvas = ({ images, settings }) => {
             </div>
 
             <div className="actions">
+                <div className="setting-group" style={{ marginRight: 'auto' }}>
+                    <label>方向：</label>
+                    <div className="toggle-group">
+                        <button
+                            className={settings.direction === 'horizontal' ? 'active' : ''}
+                            onClick={() => onDirectionChange('horizontal')}
+                        >
+                            横向
+                        </button>
+                        <button
+                            className={settings.direction === 'vertical' ? 'active' : ''}
+                            onClick={() => onDirectionChange('vertical')}
+                        >
+                            纵向
+                        </button>
+                    </div>
+                </div>
+
                 <button className="action-btn secondary" onClick={handleCopy} disabled={!canvasUrl}>
                     复制到剪贴板
                 </button>

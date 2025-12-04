@@ -113,25 +113,7 @@ function App() {
 
             {images.length > 0 && (
               <>
-                <div className="settings-panel">
-                  <div className="setting-group">
-                    <label>方向：</label>
-                    <div className="toggle-group">
-                      <button
-                        className={settings.direction === 'horizontal' ? 'active' : ''}
-                        onClick={() => setSettings(s => ({ ...s, direction: 'horizontal' }))}
-                      >
-                        横向
-                      </button>
-                      <button
-                        className={settings.direction === 'vertical' ? 'active' : ''}
-                        onClick={() => setSettings(s => ({ ...s, direction: 'vertical' }))}
-                      >
-                        纵向
-                      </button>
-                    </div>
-                  </div>
-                </div>
+
 
                 <ImagePreview
                   images={images}
@@ -149,7 +131,11 @@ function App() {
 
         <div className="right-panel">
           {images.length > 0 ? (
-            <StitchCanvas images={images} settings={settings} />
+            <StitchCanvas
+              images={images}
+              settings={settings}
+              onDirectionChange={(dir) => setSettings(s => ({ ...s, direction: dir }))}
+            />
           ) : (
             <div className="empty-state">
               <p>上传图片以在此处预览</p>
