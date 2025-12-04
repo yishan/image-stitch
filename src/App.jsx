@@ -121,6 +121,9 @@ function App() {
               </>
             )}
           </div>
+          <footer className="app-footer">
+            <p>©️2025 All Rights reserved</p>
+          </footer>
         </div>
 
         <div className="right-panel">

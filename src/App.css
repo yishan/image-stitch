@@ -131,3 +131,12 @@
   color: var(--color-text);
   background: rgba(255, 255, 255, 0.05);
 }
+
+.app-footer {
+  margin-top: auto;
+  padding-top: var(--spacing-md);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
