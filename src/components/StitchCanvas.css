@@ -27,8 +27,10 @@
 }
 
 :root[data-theme="light"] .canvas-wrapper {
-    background: transparent;
-    box-shadow: none;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    border: none !important;
 }
 
 .canvas-wrapper canvas,
