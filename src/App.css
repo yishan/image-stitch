@@ -111,9 +111,13 @@
 
 .toggle-group {
   display: flex;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.5);
   padding: 4px;
   border-radius: var(--radius-md);
+}
+
+:root[data-theme="light"] .toggle-group {
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .toggle-group button {
