@@ -125,7 +125,7 @@ function App() {
             )}
           </div>
           <footer className="app-footer">
-            <p>©️2025 All Rights reserved</p>
+            <p>Made by Saan Studio with Gemini 3</p>
           </footer>
         </div>
 
