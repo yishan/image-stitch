@@ -5,6 +5,7 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
     const canvasRef = useRef(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [canvasUrl, setCanvasUrl] = useState(null);
+    const [isCopied, setIsCopied] = useState(false);
 
     useEffect(() => {
         if (images.length === 0) return;
@@ -145,7 +146,8 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
                         [blob.type]: blob
                     })
                 ]);
-                alert('图片已复制到剪贴板！');
+                setIsCopied(true);
+                setTimeout(() => setIsCopied(false), 1500);
             });
         } catch (err) {
             console.error('Failed to copy: ', err);
@@ -191,11 +193,15 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
                     </div>
                 </div>
 
-                <button className="action-btn secondary" onClick={handleCopy} disabled={!canvasUrl}>
-                    复制到剪贴板
+                <button
+                    className={`action-btn secondary ${isCopied ? 'copied' : ''}`}
+                    onClick={handleCopy}
+                    disabled={!canvasUrl}
+                >
+                    {isCopied ? '已复制' : '复制'}
                 </button>
                 <button className="action-btn primary" onClick={handleDownload} disabled={!canvasUrl}>
-                    下载图片
+                    下载
                 </button>
             </div>
         </div>

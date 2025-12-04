@@ -82,6 +82,17 @@
     transform: translateY(-2px);
 }
 
+.action-btn.secondary.copied {
+    background: #10b981;
+    color: white;
+    border-color: #10b981;
+}
+
+.action-btn.secondary.copied:hover {
+    background: #059669;
+    border-color: #059669;
+}
+
 .action-btn:active {
     transform: translateY(0);
 }
