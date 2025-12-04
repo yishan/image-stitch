@@ -1,7 +1,7 @@
 :root {
   --font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
 
-  /* Colors - Linear Theme */
+  /* Colors - Linear Theme (Dark Default) */
   --color-bg: #08090A;
   --color-surface: #121417;
 
@@ -34,6 +34,26 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-full: 9999px;
+}
+
+:root[data-theme="light"] {
+  --color-bg: #F2F4F7;
+  --color-surface: #FFFFFF;
+
+  /* Softer, more subtle gradient for light mode */
+  --gradient-bg: radial-gradient(circle at 50% 0%, rgba(94, 106, 210, 0.05), transparent 70%);
+  --gradient-text: linear-gradient(to right, #4F46E5, #9333EA);
+
+  --color-primary: #4F46E5;
+  --color-primary-hover: #4338CA;
+  --color-text: #111827;
+  --color-text-secondary: #6B7280;
+  --color-border: rgba(0, 0, 0, 0.06);
+
+  /* Modern "Frosted Glass" */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.8);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
 }
 
 * {

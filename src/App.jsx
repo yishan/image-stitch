@@ -4,6 +4,7 @@ import './App.css'
 import ImageUploader from './components/ImageUploader'
 import ImagePreview from './components/ImagePreview'
 import StitchCanvas from './components/StitchCanvas'
+import ThemeSwitcher from './components/ThemeSwitcher'
 
 function App() {
   const [images, setImages] = useState([]);
@@ -13,6 +14,21 @@ function App() {
     backgroundColor: 'rgba(0, 0, 0, 0)',
     scale: 1
   });
+
+  // Theme state
+  const [theme, setTheme] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme || 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+  };
 
   const handleImagesUpload = useCallback((newFiles) => {
     if (images.length + newFiles.length > 5) {
@@ -83,8 +99,13 @@ function App() {
       <div className="app-content">
         <div className="left-panel">
           <header className="app-header">
-            <h1>图片拼接助手</h1>
-            <p>将多张图片无缝拼接成一张长图。</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h1>图片拼接助手</h1>
+                <p>将多张图片无缝拼接成一张长图。</p>
+              </div>
+              <ThemeSwitcher theme={theme} toggleTheme={toggleTheme} />
+            </div>
           </header>
 
           <div className="input-section">

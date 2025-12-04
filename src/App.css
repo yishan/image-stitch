@@ -31,6 +31,10 @@
   background: rgba(0, 0, 0, 0.2);
 }
 
+:root[data-theme="light"] .left-panel {
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
+}
+
 .right-panel {
   height: 100%;
   overflow: hidden;
