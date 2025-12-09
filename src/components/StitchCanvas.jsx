@@ -164,6 +164,46 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
 
     return (
         <div className="stitch-container">
+            <div className="controls-header">
+                <div className="setting-group">
+                    <div className="toggle-group">
+                        <button
+                            className={settings.direction === 'horizontal' ? 'active' : ''}
+                            onClick={() => onSettingsChange(prev => ({ ...prev, direction: 'horizontal' }))}
+                        >
+                            横向
+                        </button>
+                        <button
+                            className={settings.direction === 'vertical' ? 'active' : ''}
+                            onClick={() => onSettingsChange(prev => ({ ...prev, direction: 'vertical' }))}
+                        >
+                            纵向
+                        </button>
+                        <button
+                            className={settings.direction === 'collage' ? 'active' : ''}
+                            onClick={() => onSettingsChange(prev => ({ ...prev, direction: 'collage' }))}
+                        >
+                            网格
+                        </button>
+                    </div>
+                    <div className="gap-control">
+                        <label>间距:</label>
+                        <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={settings.gap}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (!isNaN(val) && val >= 1 && val <= 10) {
+                                    onSettingsChange(prev => ({ ...prev, gap: val }));
+                                }
+                            }}
+                        />
+                    </div>
+                </div>
+            </div>
+
             <div className="canvas-wrapper">
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
                 {canvasUrl ? (
@@ -174,30 +214,6 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
             </div>
 
             <div className="actions">
-                <div className="setting-group" style={{ marginRight: 'auto' }}>
-
-                    <div className="toggle-group">
-                        <button
-                            className={settings.direction === 'horizontal' ? 'active' : ''}
-                            onClick={() => onDirectionChange('horizontal')}
-                        >
-                            横向
-                        </button>
-                        <button
-                            className={settings.direction === 'vertical' ? 'active' : ''}
-                            onClick={() => onDirectionChange('vertical')}
-                        >
-                            纵向
-                        </button>
-                        <button
-                            className={settings.direction === 'collage' ? 'active' : ''}
-                            onClick={() => onDirectionChange('collage')}
-                        >
-                            网格
-                        </button>
-                    </div>
-                </div>
-
                 <button
                     className={`action-btn secondary ${isCopied ? 'copied' : ''}`}
                     onClick={handleCopy}

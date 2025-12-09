@@ -134,7 +134,7 @@ function App() {
             <StitchCanvas
               images={images}
               settings={settings}
-              onDirectionChange={(dir) => setSettings(s => ({ ...s, direction: dir }))}
+              onSettingsChange={setSettings}
             />
           ) : (
             <div className="empty-state">
