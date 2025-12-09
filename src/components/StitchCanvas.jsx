@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import './StitchCanvas.css';
 
-const StitchCanvas = ({ images, settings, onDirectionChange }) => {
+const StitchCanvas = ({ images, settings, onSettingsChange }) => {
     const canvasRef = useRef(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [canvasUrl, setCanvasUrl] = useState(null);
@@ -187,15 +187,15 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
                         </button>
                     </div>
                     <div className="gap-control">
-                        <label>间距:</label>
+                        <label>间距: {settings.gap}px</label>
                         <input
-                            type="number"
-                            min="1"
+                            type="range"
+                            min="0"
                             max="10"
                             value={settings.gap}
                             onChange={(e) => {
                                 const val = parseInt(e.target.value);
-                                if (!isNaN(val) && val >= 1 && val <= 10) {
+                                if (!isNaN(val) && val >= 0 && val <= 10) {
                                     onSettingsChange(prev => ({ ...prev, gap: val }));
                                 }
                             }}
