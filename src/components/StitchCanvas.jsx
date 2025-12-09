@@ -36,9 +36,11 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
                     totalWidth = Math.max(...loadedImages.map(img => img.width));
                     totalHeight = loadedImages.reduce((sum, img) => sum + img.height, 0) + (gap * (loadedImages.length - 1));
                 } else if (direction === 'collage') {
-                    // 2 rows, 3 images per row
-                    const row1 = loadedImages.slice(0, 3);
-                    const row2 = loadedImages.slice(3, 6);
+                    // Determine split index: 2 for 4 images (2x2), 3 for others (3 per row)
+                    const splitIndex = loadedImages.length === 4 ? 2 : 3;
+
+                    const row1 = loadedImages.slice(0, splitIndex);
+                    const row2 = loadedImages.slice(splitIndex, splitIndex * 2);
 
                     const row1Width = row1.reduce((sum, img) => sum + img.width, 0) + (gap * Math.max(0, row1.length - 1));
                     const row1Height = row1.length > 0 ? Math.max(...row1.map(img => img.height)) : 0;
@@ -78,10 +80,13 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
                         ctx.drawImage(img, xOffset, currentY);
                         currentY += img.height + gap;
                     } else if (direction === 'collage') {
+                        // Determine split index again for drawing
+                        const splitIndex = loadedImages.length === 4 ? 2 : 3;
+
                         // Determine which row this image belongs to
-                        const isRow1 = index < 3;
-                        const rowImages = isRow1 ? loadedImages.slice(0, 3) : loadedImages.slice(3, 6);
-                        const rowIndex = isRow1 ? index : index - 3;
+                        const isRow1 = index < splitIndex;
+                        const rowImages = isRow1 ? loadedImages.slice(0, splitIndex) : loadedImages.slice(splitIndex, splitIndex * 2);
+                        const rowIndex = isRow1 ? index : index - splitIndex;
 
                         // Calculate row height for vertical centering within the row
                         const rowHeight = Math.max(...rowImages.map(i => i.height));
@@ -89,7 +94,7 @@ const StitchCanvas = ({ images, settings, onDirectionChange }) => {
                         // Calculate Y position
                         let yPos = 0;
                         if (!isRow1) {
-                            const row1Height = Math.max(...loadedImages.slice(0, 3).map(i => i.height));
+                            const row1Height = Math.max(...loadedImages.slice(0, splitIndex).map(i => i.height));
                             yPos = row1Height + gap;
                         }
 
