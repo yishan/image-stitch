@@ -1,26 +1,26 @@
 :root {
   --font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
 
-  /* Colors - Linear Theme (Dark Default) */
-  --color-bg: #08090A;
-  --color-surface: #121417;
+  /* Colors - Adaline Dark (Green Theme) */
+  --color-bg: #0A0C0B;
+  --color-surface: #131815;
 
-  /* Linear Gradients */
-  --gradient-primary: linear-gradient(135deg, #5E6AD2 0%, #A259FF 100%);
-  --gradient-bg: radial-gradient(circle at 50% 0%, rgba(94, 106, 210, 0.15), transparent 60%);
-  --gradient-text: linear-gradient(to right, #E0E7FF, #A259FF);
+  /* Linear Gradients - Green/Teal */
+  --gradient-primary: linear-gradient(135deg, #3DD68C 0%, #00EDA0 100%);
+  --gradient-bg: radial-gradient(circle at 50% 0%, rgba(61, 214, 140, 0.1), transparent 60%);
+  --gradient-text: linear-gradient(to right, #3DD68C, #00EDA0);
 
-  --color-primary: #5E6AD2;
-  --color-primary-hover: #4b55aa;
-  --color-text: #F7F8F8;
-  --color-text-secondary: #8A8F98;
-  --color-border: rgba(255, 255, 255, 0.08);
+  --color-primary: #3DD68C;
+  --color-primary-hover: #2db374;
+  --color-text: #E8F5E9;
+  --color-text-secondary: #8E9E93;
+  --color-border: rgba(61, 214, 140, 0.15);
 
-  /* Glassmorphism - Linear Style */
-  --glass-bg: rgba(255, 255, 255, 0.02);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.06);
-  --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --backdrop-blur: blur(12px);
+  /* Glassmorphism - Dark Green Style */
+  --glass-bg: rgba(19, 24, 21, 0.6);
+  --glass-border: 1px solid rgba(61, 214, 140, 0.1);
+  --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  --backdrop-blur: blur(16px);
 
   /* Spacing */
   --spacing-xs: 0.5rem;
@@ -37,23 +37,23 @@
 }
 
 :root[data-theme="light"] {
-  --color-bg: #F2F4F7;
+  --color-bg: #FAFAF8;
   --color-surface: #FFFFFF;
 
-  /* Softer, more subtle gradient for light mode */
-  --gradient-bg: radial-gradient(circle at 50% 0%, rgba(94, 106, 210, 0.05), transparent 70%);
-  --gradient-text: linear-gradient(to right, #4F46E5, #9333EA);
+  /* Subtle warm radial gradient for depth */
+  --gradient-bg: radial-gradient(circle at 50% 0%, rgba(26, 60, 30, 0.03), transparent 60%);
+  --gradient-text: linear-gradient(to right, #1A3C1E, #3A5C3E);
 
-  --color-primary: #4F46E5;
-  --color-primary-hover: #4338CA;
-  --color-text: #111827;
-  --color-text-secondary: #6B7280;
-  --color-border: rgba(0, 0, 0, 0.06);
+  --color-primary: #1A3C1E;
+  --color-primary-hover: #122A15;
+  --color-text: #1A1A1A;
+  --color-text-secondary: #5A5A5A;
+  --color-border: rgba(0, 0, 0, 0.08);
 
-  /* Modern "Frosted Glass" */
-  --glass-bg: rgba(255, 255, 255, 0.75);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.8);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+  /* Modern "Solid Glass" */
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: 1px solid rgba(0, 0, 0, 0.05);
+  --glass-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 * {

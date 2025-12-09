@@ -17,15 +17,25 @@
 
 .uploader-container:hover {
     border-color: var(--color-primary);
-    background: rgba(99, 102, 241, 0.05);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+    background: rgba(61, 214, 140, 0.05);
+    box-shadow: 0 0 20px rgba(61, 214, 140, 0.1);
 }
 
 .uploader-container.dragging {
     border-color: var(--color-primary);
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba(61, 214, 140, 0.1);
     transform: scale(1.01);
-    box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
+    box-shadow: 0 0 30px rgba(61, 214, 140, 0.2);
+}
+
+:root[data-theme="light"] .uploader-container:hover {
+    background: rgba(26, 60, 30, 0.03);
+    box-shadow: 0 0 20px rgba(26, 60, 30, 0.05);
+}
+
+:root[data-theme="light"] .uploader-container.dragging {
+    background: rgba(26, 60, 30, 0.08);
+    box-shadow: 0 0 30px rgba(26, 60, 30, 0.1);
 }
 
 .uploader-content {
