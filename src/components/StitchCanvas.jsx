@@ -191,11 +191,12 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                         <input
                             type="range"
                             min="0"
-                            max="10"
+                            max="20"
+                            step="2"
                             value={settings.gap}
                             onChange={(e) => {
                                 const val = parseInt(e.target.value);
-                                if (!isNaN(val) && val >= 0 && val <= 10) {
+                                if (!isNaN(val) && val >= 0 && val <= 20) {
                                     onSettingsChange(prev => ({ ...prev, gap: val }));
                                 }
                             }}

@@ -124,6 +124,13 @@
     justify-content: flex-start;
 }
 
+.setting-group {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 .gap-control {
     display: flex;
     align-items: center;
@@ -132,6 +139,17 @@
     color: var(--color-text-secondary);
     font-size: 0.9rem;
     font-weight: 500;
+
+    /* Matches .toggle-group style */
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px 12px;
+    border-radius: var(--radius-md);
+    height: 32px;
+    /* Match button height generally */
+}
+
+:root[data-theme="light"] .gap-control {
+    background: rgba(255, 255, 255, 0.9);
 }
 
 .gap-control input[type="range"] {
