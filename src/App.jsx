@@ -125,7 +125,7 @@ function App() {
             )}
           </div>
           <footer className="app-footer">
-            <p>Made by Saan Studio with Gemini 3</p>
+            <p>Made by <a href="https://yishan.li" target="_blank" rel="noopener noreferrer">Yishan</a> with Gemini 3</p>
           </footer>
         </div>
 
