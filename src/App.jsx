@@ -9,7 +9,7 @@ import ThemeSwitcher from './components/ThemeSwitcher'
 function App() {
   const [images, setImages] = useState([]);
   const [settings, setSettings] = useState({
-    direction: 'horizontal', // 'horizontal' | 'vertical'
+    direction: 'vertical', // 'horizontal' | 'vertical'
     gap: 5,
     backgroundColor: 'rgba(0, 0, 0, 0)',
     scale: 1
