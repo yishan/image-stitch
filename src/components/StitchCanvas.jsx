@@ -29,24 +29,54 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                 let totalWidth = 0;
                 let totalHeight = 0;
 
+                // Pre-process images for unified dimensions
+                let processedImages = loadedImages.map(img => ({
+                    img,
+                    width: img.width,
+                    height: img.height,
+                    original: img
+                }));
+
                 if (direction === 'horizontal') {
-                    totalWidth = loadedImages.reduce((sum, img) => sum + img.width, 0) + (gap * (loadedImages.length - 1));
-                    totalHeight = Math.max(...loadedImages.map(img => img.height));
+                    const maxHeight = Math.max(...loadedImages.map(img => img.height));
+                    processedImages = processedImages.map(item => {
+                        const scaleFactor = maxHeight / item.height;
+                        return {
+                            ...item,
+                            width: item.width * scaleFactor,
+                            height: maxHeight
+                        };
+                    });
                 } else if (direction === 'vertical') {
-                    totalWidth = Math.max(...loadedImages.map(img => img.width));
-                    totalHeight = loadedImages.reduce((sum, img) => sum + img.height, 0) + (gap * (loadedImages.length - 1));
+                    const maxWidth = Math.max(...loadedImages.map(img => img.width));
+                    processedImages = processedImages.map(item => {
+                        const scaleFactor = maxWidth / item.width;
+                        return {
+                            ...item,
+                            width: maxWidth,
+                            height: item.height * scaleFactor
+                        };
+                    });
+                }
+
+                if (direction === 'horizontal') {
+                    totalWidth = processedImages.reduce((sum, item) => sum + item.width, 0) + (gap * (processedImages.length - 1));
+                    totalHeight = Math.max(...processedImages.map(item => item.height));
+                } else if (direction === 'vertical') {
+                    totalWidth = Math.max(...processedImages.map(item => item.width));
+                    totalHeight = processedImages.reduce((sum, item) => sum + item.height, 0) + (gap * (processedImages.length - 1));
                 } else if (direction === 'collage') {
                     // Determine split index: 2 for 4 images (2x2), 3 for others (3 per row)
-                    const splitIndex = loadedImages.length === 4 ? 2 : 3;
+                    const splitIndex = processedImages.length === 4 ? 2 : 3;
 
-                    const row1 = loadedImages.slice(0, splitIndex);
-                    const row2 = loadedImages.slice(splitIndex, splitIndex * 2);
+                    const row1 = processedImages.slice(0, splitIndex);
+                    const row2 = processedImages.slice(splitIndex, splitIndex * 2);
 
-                    const row1Width = row1.reduce((sum, img) => sum + img.width, 0) + (gap * Math.max(0, row1.length - 1));
-                    const row1Height = row1.length > 0 ? Math.max(...row1.map(img => img.height)) : 0;
+                    const row1Width = row1.reduce((sum, item) => sum + item.width, 0) + (gap * Math.max(0, row1.length - 1));
+                    const row1Height = row1.length > 0 ? Math.max(...row1.map(item => item.height)) : 0;
 
-                    const row2Width = row2.reduce((sum, img) => sum + img.width, 0) + (gap * Math.max(0, row2.length - 1));
-                    const row2Height = row2.length > 0 ? Math.max(...row2.map(img => img.height)) : 0;
+                    const row2Width = row2.reduce((sum, item) => sum + item.width, 0) + (gap * Math.max(0, row2.length - 1));
+                    const row2Height = row2.length > 0 ? Math.max(...row2.map(item => item.height)) : 0;
 
                     totalWidth = Math.max(row1Width, row2Width);
                     totalHeight = row1Height + (row2.length > 0 ? gap : 0) + row2Height;
@@ -68,24 +98,28 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                 let currentX = 0;
                 let currentY = 0;
 
-                loadedImages.forEach((img, index) => {
+                processedImages.forEach((item, index) => {
+                    const img = item.original; // Use original image for drawing, but with calculated dimensions
+                    const drawWidth = item.width;
+                    const drawHeight = item.height;
+
                     if (direction === 'horizontal') {
-                        // Center vertically if heights differ
-                        const yOffset = (totalHeight - img.height) / 2;
-                        ctx.drawImage(img, currentX, yOffset);
-                        currentX += img.width + gap;
+                        // Center vertically if heights differ (though they should be same if sameDimension is true)
+                        const yOffset = (totalHeight - drawHeight) / 2;
+                        ctx.drawImage(img, currentX, yOffset, drawWidth, drawHeight);
+                        currentX += drawWidth + gap;
                     } else if (direction === 'vertical') {
-                        // Center horizontally if widths differ
-                        const xOffset = (totalWidth - img.width) / 2;
-                        ctx.drawImage(img, xOffset, currentY);
-                        currentY += img.height + gap;
+                        // Center horizontally if widths differ (though they should be same if sameDimension is true)
+                        const xOffset = (totalWidth - drawWidth) / 2;
+                        ctx.drawImage(img, xOffset, currentY, drawWidth, drawHeight);
+                        currentY += drawHeight + gap;
                     } else if (direction === 'collage') {
                         // Determine split index again for drawing
-                        const splitIndex = loadedImages.length === 4 ? 2 : 3;
+                        const splitIndex = processedImages.length === 4 ? 2 : 3;
 
                         // Determine which row this image belongs to
                         const isRow1 = index < splitIndex;
-                        const rowImages = isRow1 ? loadedImages.slice(0, splitIndex) : loadedImages.slice(splitIndex, splitIndex * 2);
+                        const rowImages = isRow1 ? processedImages.slice(0, splitIndex) : processedImages.slice(splitIndex, splitIndex * 2);
                         const rowIndex = isRow1 ? index : index - splitIndex;
 
                         // Calculate row height for vertical centering within the row
@@ -94,7 +128,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                         // Calculate Y position
                         let yPos = 0;
                         if (!isRow1) {
-                            const row1Height = Math.max(...loadedImages.slice(0, splitIndex).map(i => i.height));
+                            const row1Height = Math.max(...processedImages.slice(0, splitIndex).map(i => i.height));
                             yPos = row1Height + gap;
                         }
 
@@ -107,14 +141,14 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                         }
 
                         // Center vertically within the row
-                        const yOffset = yPos + (rowHeight - img.height) / 2;
+                        const yOffset = yPos + (rowHeight - drawHeight) / 2;
 
                         // Center the row horizontally in the total width?
                         // For now, let's just align left. To center the row:
                         const rowWidth = rowImages.reduce((sum, i) => sum + i.width, 0) + (gap * (rowImages.length - 1));
                         const rowXOffset = (totalWidth - rowWidth) / 2;
 
-                        ctx.drawImage(img, xPos + rowXOffset, yOffset);
+                        ctx.drawImage(img, xPos + rowXOffset, yOffset, drawWidth, drawHeight);
                     }
                 });
 
@@ -186,6 +220,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                             网格
                         </button>
                     </div>
+
                     <div className="gap-control">
                         <label>间距: {settings.gap}px</label>
                         <input
