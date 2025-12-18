@@ -47,7 +47,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                             height: maxHeight
                         };
                     });
-                } else if (direction === 'vertical') {
+                } else if (direction === 'vertical' || direction === 'collage') {
                     const maxWidth = Math.max(...loadedImages.map(img => img.width));
                     processedImages = processedImages.map(item => {
                         const scaleFactor = maxWidth / item.width;
