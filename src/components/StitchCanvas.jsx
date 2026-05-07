@@ -3,16 +3,29 @@ import './StitchCanvas.css';
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-const drawWavePath = (ctx, seam) => {
+const getRippleMetrics = (totalWidth, totalHeight, seamThicknessSetting) => {
+    const seamThickness = clamp(Number(seamThicknessSetting) || 2, 1, 3);
+    const baseSize = Math.min(totalWidth, totalHeight);
+    const amplitude = clamp(baseSize * 0.007 * seamThickness, 4, 16);
+    const wavelength = clamp(baseSize * 0.055, 24, 72);
+
+    return { amplitude, wavelength };
+};
+
+const getWaveOffset = (pos, from, amplitude, wavelength) => (
+    Math.sin(((pos - from) / wavelength) * Math.PI * 2) * amplitude
+);
+
+const traceWaveLine = (ctx, seam, offset = 0) => {
     const { orientation, x, y, from, to, amplitude, wavelength } = seam;
     const step = 4;
 
     ctx.beginPath();
 
     for (let pos = from; pos <= to; pos += step) {
-        const waveOffset = Math.sin(((pos - from) / wavelength) * Math.PI * 2) * amplitude;
-        const pointX = orientation === 'vertical' ? x + waveOffset : pos;
-        const pointY = orientation === 'vertical' ? pos : y + waveOffset;
+        const waveOffset = getWaveOffset(pos, from, amplitude, wavelength);
+        const pointX = orientation === 'vertical' ? x + waveOffset + offset : pos;
+        const pointY = orientation === 'vertical' ? pos : y + waveOffset + offset;
 
         if (pos === from) {
             ctx.moveTo(pointX, pointY);
@@ -21,36 +34,136 @@ const drawWavePath = (ctx, seam) => {
         }
     }
 
-    ctx.stroke();
+    const finalWaveOffset = getWaveOffset(to, from, amplitude, wavelength);
+    ctx.lineTo(
+        orientation === 'vertical' ? x + finalWaveOffset + offset : to,
+        orientation === 'vertical' ? to : y + finalWaveOffset + offset
+    );
 };
 
-const drawWaveSeams = (ctx, seams, totalWidth, totalHeight, seamThicknessSetting) => {
+const drawRippleSeamShadows = (ctx, seams, totalWidth, totalHeight, seamThicknessSetting) => {
     if (seams.length === 0) return;
 
     const seamThickness = clamp(Number(seamThicknessSetting) || 2, 1, 3);
-    const baseSize = Math.min(totalWidth, totalHeight);
-    const baseLineWidth = clamp(baseSize * 0.0025, 2, 4);
-    const lineWidth = baseLineWidth + ((seamThickness - 1) * 2);
-    const amplitude = lineWidth * 1.45;
-    const wavelength = lineWidth * 7;
+    const lineWidth = clamp(Math.min(totalWidth, totalHeight) * 0.0018, 1, 2.5);
+    const offset = clamp(seamThickness * 0.85, 0.75, 2.2);
 
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    ctx.lineWidth = lineWidth;
 
     seams.forEach((seam) => {
-        const waveSeam = { ...seam, amplitude, wavelength };
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+        traceWaveLine(ctx, seam, -offset);
+        ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
-        ctx.lineWidth = lineWidth + 2;
-        drawWavePath(ctx, waveSeam);
-
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.lineWidth = lineWidth;
-        drawWavePath(ctx, waveSeam);
+        ctx.strokeStyle = 'rgba(40, 40, 40, 0.42)';
+        traceWaveLine(ctx, seam, offset);
+        ctx.stroke();
     });
 
     ctx.restore();
+};
+
+const addHorizontalEdge = (ctx, edge, left, right, reverse = false) => {
+    const step = 4;
+    const start = reverse ? right : left;
+    const end = reverse ? left : right;
+    const direction = reverse ? -step : step;
+
+    for (let x = start; reverse ? x >= end : x <= end; x += direction) {
+        const y = edge
+            ? edge.y + getWaveOffset(x, edge.from, edge.amplitude, edge.wavelength)
+            : edge?.fallbackY;
+        ctx.lineTo(x, y);
+    }
+
+    if ((reverse && start !== end) || (!reverse && start !== end)) {
+        const finalY = edge
+            ? edge.y + getWaveOffset(end, edge.from, edge.amplitude, edge.wavelength)
+            : edge?.fallbackY;
+        ctx.lineTo(end, finalY);
+    }
+};
+
+const addVerticalEdge = (ctx, edge, top, bottom, reverse = false) => {
+    const step = 4;
+    const start = reverse ? bottom : top;
+    const end = reverse ? top : bottom;
+    const direction = reverse ? -step : step;
+
+    for (let y = start; reverse ? y >= end : y <= end; y += direction) {
+        const x = edge
+            ? edge.x + getWaveOffset(y, edge.from, edge.amplitude, edge.wavelength)
+            : edge?.fallbackX;
+        ctx.lineTo(x, y);
+    }
+
+    if ((reverse && start !== end) || (!reverse && start !== end)) {
+        const finalX = edge
+            ? edge.x + getWaveOffset(end, edge.from, edge.amplitude, edge.wavelength)
+            : edge?.fallbackX;
+        ctx.lineTo(finalX, end);
+    }
+};
+
+const createImageClipPath = (ctx, placement) => {
+    const { x, y, width, height, topEdge, rightEdge, bottomEdge, leftEdge } = placement;
+    const topY = y;
+    const rightX = x + width;
+    const bottomY = y + height;
+    const leftX = x;
+
+    ctx.beginPath();
+    ctx.moveTo(leftX, topEdge ? topEdge.y + getWaveOffset(leftX, topEdge.from, topEdge.amplitude, topEdge.wavelength) : topY);
+
+    if (topEdge) {
+        addHorizontalEdge(ctx, topEdge, leftX, rightX);
+    } else {
+        ctx.lineTo(rightX, topY);
+    }
+
+    if (rightEdge) {
+        addVerticalEdge(ctx, rightEdge, topY, bottomY);
+    } else {
+        ctx.lineTo(rightX, bottomY);
+    }
+
+    if (bottomEdge) {
+        addHorizontalEdge(ctx, bottomEdge, leftX, rightX, true);
+    } else {
+        ctx.lineTo(leftX, bottomY);
+    }
+
+    if (leftEdge) {
+        addVerticalEdge(ctx, leftEdge, topY, bottomY, true);
+    } else {
+        ctx.lineTo(leftX, topY);
+    }
+
+    ctx.closePath();
+};
+
+const drawRippleStitchedImages = (ctx, placements) => {
+    placements.forEach((placement) => {
+        const leftOverlap = placement.leftEdge?.amplitude ?? 0;
+        const rightOverlap = placement.rightEdge?.amplitude ?? 0;
+        const topOverlap = placement.topEdge?.amplitude ?? 0;
+        const bottomOverlap = placement.bottomEdge?.amplitude ?? 0;
+
+        ctx.save();
+        createImageClipPath(ctx, placement);
+        ctx.clip();
+        ctx.drawImage(
+            placement.img,
+            placement.x - leftOverlap,
+            placement.y - topOverlap,
+            placement.width + leftOverlap + rightOverlap,
+            placement.height + topOverlap + bottomOverlap
+        );
+        ctx.restore();
+    });
 };
 
 const StitchCanvas = ({ images, settings, onSettingsChange }) => {
@@ -144,10 +257,12 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                 ctx.fillStyle = backgroundColor;
                 ctx.fillRect(0, 0, totalWidth, totalHeight);
 
-                // Draw images
+                // Draw images through clipped wave-shaped regions so adjoining photos interlock.
                 let currentX = 0;
                 let currentY = 0;
-                const seams = [];
+                const placements = [];
+                const seamShadows = [];
+                const { amplitude, wavelength } = getRippleMetrics(totalWidth, totalHeight, seamThickness);
 
                 processedImages.forEach((item, index) => {
                     const img = item.original; // Use original image for drawing, but with calculated dimensions
@@ -157,31 +272,77 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                     if (direction === 'horizontal') {
                         // Center vertically if heights differ (though they should be same if sameDimension is true)
                         const yOffset = (totalHeight - drawHeight) / 2;
-                        ctx.drawImage(img, currentX, yOffset, drawWidth, drawHeight);
-
-                        if (index < processedImages.length - 1) {
-                            seams.push({
+                        const leftEdge = index > 0
+                            ? {
+                                orientation: 'vertical',
+                                x: currentX,
+                                from: yOffset,
+                                amplitude,
+                                wavelength
+                            }
+                            : null;
+                        const rightEdge = index < processedImages.length - 1
+                            ? {
                                 orientation: 'vertical',
                                 x: currentX + drawWidth,
                                 from: yOffset,
-                                to: yOffset + drawHeight
-                            });
+                                to: yOffset + drawHeight,
+                                amplitude,
+                                wavelength
+                            }
+                            : null;
+
+                        if (rightEdge) {
+                            seamShadows.push(rightEdge);
                         }
+
+                        placements.push({
+                            img,
+                            x: currentX,
+                            y: yOffset,
+                            width: drawWidth,
+                            height: drawHeight,
+                            leftEdge,
+                            rightEdge
+                        });
 
                         currentX += drawWidth;
                     } else if (direction === 'vertical') {
                         // Center horizontally if widths differ (though they should be same if sameDimension is true)
                         const xOffset = (totalWidth - drawWidth) / 2;
-                        ctx.drawImage(img, xOffset, currentY, drawWidth, drawHeight);
-
-                        if (index < processedImages.length - 1) {
-                            seams.push({
+                        const topEdge = index > 0
+                            ? {
+                                orientation: 'horizontal',
+                                y: currentY,
+                                from: xOffset,
+                                amplitude,
+                                wavelength
+                            }
+                            : null;
+                        const bottomEdge = index < processedImages.length - 1
+                            ? {
                                 orientation: 'horizontal',
                                 y: currentY + drawHeight,
                                 from: xOffset,
-                                to: xOffset + drawWidth
-                            });
+                                to: xOffset + drawWidth,
+                                amplitude,
+                                wavelength
+                            }
+                            : null;
+
+                        if (bottomEdge) {
+                            seamShadows.push(bottomEdge);
                         }
+
+                        placements.push({
+                            img,
+                            x: xOffset,
+                            y: currentY,
+                            width: drawWidth,
+                            height: drawHeight,
+                            topEdge,
+                            bottomEdge
+                        });
 
                         currentY += drawHeight;
                     } else if (direction === 'collage') {
@@ -218,31 +379,74 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                         // For now, let's just align left. To center the row:
                         const rowWidth = rowImages.reduce((sum, i) => sum + i.width, 0);
                         const rowXOffset = (totalWidth - rowWidth) / 2;
+                        const x = xPos + rowXOffset;
 
-                        ctx.drawImage(img, xPos + rowXOffset, yOffset, drawWidth, drawHeight);
-
-                        if (rowIndex < rowImages.length - 1) {
-                            seams.push({
+                        const leftEdge = rowIndex > 0
+                            ? {
                                 orientation: 'vertical',
-                                x: rowXOffset + xPos + drawWidth,
+                                x,
                                 from: yPos,
-                                to: yPos + rowHeight
-                            });
-                        }
-
-                        if (index === 0 && processedImages.length > splitIndex) {
-                            const row1Height = Math.max(...processedImages.slice(0, splitIndex).map(i => i.height));
-                            seams.push({
+                                amplitude,
+                                wavelength
+                            }
+                            : null;
+                        const rightEdge = rowIndex < rowImages.length - 1
+                            ? {
+                                orientation: 'vertical',
+                                x: x + drawWidth,
+                                from: yPos,
+                                to: yPos + rowHeight,
+                                amplitude,
+                                wavelength
+                            }
+                            : null;
+                        const row1Height = processedImages.length > splitIndex
+                            ? Math.max(...processedImages.slice(0, splitIndex).map(i => i.height))
+                            : 0;
+                        const topEdge = !isRow1
+                            ? {
                                 orientation: 'horizontal',
                                 y: row1Height,
                                 from: 0,
-                                to: totalWidth
-                            });
+                                amplitude,
+                                wavelength
+                            }
+                            : null;
+                        const bottomEdge = isRow1 && processedImages.length > splitIndex
+                            ? {
+                                orientation: 'horizontal',
+                                y: row1Height,
+                                from: 0,
+                                to: totalWidth,
+                                amplitude,
+                                wavelength
+                            }
+                            : null;
+
+                        if (rightEdge) {
+                            seamShadows.push(rightEdge);
                         }
+
+                        if (bottomEdge) {
+                            seamShadows.push(bottomEdge);
+                        }
+
+                        placements.push({
+                            img,
+                            x,
+                            y: yOffset,
+                            width: drawWidth,
+                            height: drawHeight,
+                            topEdge,
+                            rightEdge,
+                            bottomEdge,
+                            leftEdge
+                        });
                     }
                 });
 
-                drawWaveSeams(ctx, seams, totalWidth, totalHeight, seamThickness);
+                drawRippleStitchedImages(ctx, placements);
+                drawRippleSeamShadows(ctx, seamShadows, totalWidth, totalHeight, seamThickness);
 
                 setCanvasUrl(canvas.toDataURL('image/png'));
             } catch (error) {
