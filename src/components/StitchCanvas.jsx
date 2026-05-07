@@ -1,6 +1,58 @@
 import { useEffect, useRef, useState } from 'react';
 import './StitchCanvas.css';
 
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const drawWavePath = (ctx, seam) => {
+    const { orientation, x, y, from, to, amplitude, wavelength } = seam;
+    const step = 4;
+
+    ctx.beginPath();
+
+    for (let pos = from; pos <= to; pos += step) {
+        const waveOffset = Math.sin(((pos - from) / wavelength) * Math.PI * 2) * amplitude;
+        const pointX = orientation === 'vertical' ? x + waveOffset : pos;
+        const pointY = orientation === 'vertical' ? pos : y + waveOffset;
+
+        if (pos === from) {
+            ctx.moveTo(pointX, pointY);
+        } else {
+            ctx.lineTo(pointX, pointY);
+        }
+    }
+
+    ctx.stroke();
+};
+
+const drawWaveSeams = (ctx, seams, totalWidth, totalHeight, seamThicknessSetting) => {
+    if (seams.length === 0) return;
+
+    const seamThickness = clamp(Number(seamThicknessSetting) || 2, 1, 3);
+    const baseSize = Math.min(totalWidth, totalHeight);
+    const baseLineWidth = clamp(baseSize * 0.0025, 2, 4);
+    const lineWidth = baseLineWidth + ((seamThickness - 1) * 2);
+    const amplitude = lineWidth * 1.45;
+    const wavelength = lineWidth * 7;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    seams.forEach((seam) => {
+        const waveSeam = { ...seam, amplitude, wavelength };
+
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.lineWidth = lineWidth + 2;
+        drawWavePath(ctx, waveSeam);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = lineWidth;
+        drawWavePath(ctx, waveSeam);
+    });
+
+    ctx.restore();
+};
+
 const StitchCanvas = ({ images, settings, onSettingsChange }) => {
     const canvasRef = useRef(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -12,6 +64,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
 
         const generateImage = async () => {
             setIsGenerating(true);
+            setCanvasUrl(null);
 
             try {
                 // Load all images
@@ -25,7 +78,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                 );
 
                 // Calculate dimensions
-                const { direction, gap, backgroundColor, scale } = settings;
+                const { direction, backgroundColor, seamThickness = 2 } = settings;
                 let totalWidth = 0;
                 let totalHeight = 0;
 
@@ -60,11 +113,11 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                 }
 
                 if (direction === 'horizontal') {
-                    totalWidth = processedImages.reduce((sum, item) => sum + item.width, 0) + (gap * (processedImages.length - 1));
+                    totalWidth = processedImages.reduce((sum, item) => sum + item.width, 0);
                     totalHeight = Math.max(...processedImages.map(item => item.height));
                 } else if (direction === 'vertical') {
                     totalWidth = Math.max(...processedImages.map(item => item.width));
-                    totalHeight = processedImages.reduce((sum, item) => sum + item.height, 0) + (gap * (processedImages.length - 1));
+                    totalHeight = processedImages.reduce((sum, item) => sum + item.height, 0);
                 } else if (direction === 'collage') {
                     // Determine split index: 2 for 4 images (2x2), 3 for others (3 per row)
                     const splitIndex = processedImages.length === 4 ? 2 : 3;
@@ -72,18 +125,15 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                     const row1 = processedImages.slice(0, splitIndex);
                     const row2 = processedImages.slice(splitIndex, splitIndex * 2);
 
-                    const row1Width = row1.reduce((sum, item) => sum + item.width, 0) + (gap * Math.max(0, row1.length - 1));
+                    const row1Width = row1.reduce((sum, item) => sum + item.width, 0);
                     const row1Height = row1.length > 0 ? Math.max(...row1.map(item => item.height)) : 0;
 
-                    const row2Width = row2.reduce((sum, item) => sum + item.width, 0) + (gap * Math.max(0, row2.length - 1));
+                    const row2Width = row2.reduce((sum, item) => sum + item.width, 0);
                     const row2Height = row2.length > 0 ? Math.max(...row2.map(item => item.height)) : 0;
 
                     totalWidth = Math.max(row1Width, row2Width);
-                    totalHeight = row1Height + (row2.length > 0 ? gap : 0) + row2Height;
+                    totalHeight = row1Height + row2Height;
                 }
-
-                // Apply scale (optional, but good for performance if images are huge)
-                // For now, we keep original resolution for quality, but display it smaller via CSS
 
                 const canvas = canvasRef.current;
                 canvas.width = totalWidth;
@@ -97,6 +147,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                 // Draw images
                 let currentX = 0;
                 let currentY = 0;
+                const seams = [];
 
                 processedImages.forEach((item, index) => {
                     const img = item.original; // Use original image for drawing, but with calculated dimensions
@@ -107,12 +158,32 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                         // Center vertically if heights differ (though they should be same if sameDimension is true)
                         const yOffset = (totalHeight - drawHeight) / 2;
                         ctx.drawImage(img, currentX, yOffset, drawWidth, drawHeight);
-                        currentX += drawWidth + gap;
+
+                        if (index < processedImages.length - 1) {
+                            seams.push({
+                                orientation: 'vertical',
+                                x: currentX + drawWidth,
+                                from: yOffset,
+                                to: yOffset + drawHeight
+                            });
+                        }
+
+                        currentX += drawWidth;
                     } else if (direction === 'vertical') {
                         // Center horizontally if widths differ (though they should be same if sameDimension is true)
                         const xOffset = (totalWidth - drawWidth) / 2;
                         ctx.drawImage(img, xOffset, currentY, drawWidth, drawHeight);
-                        currentY += drawHeight + gap;
+
+                        if (index < processedImages.length - 1) {
+                            seams.push({
+                                orientation: 'horizontal',
+                                y: currentY + drawHeight,
+                                from: xOffset,
+                                to: xOffset + drawWidth
+                            });
+                        }
+
+                        currentY += drawHeight;
                     } else if (direction === 'collage') {
                         // Determine split index again for drawing
                         const splitIndex = processedImages.length === 4 ? 2 : 3;
@@ -129,7 +200,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                         let yPos = 0;
                         if (!isRow1) {
                             const row1Height = Math.max(...processedImages.slice(0, splitIndex).map(i => i.height));
-                            yPos = row1Height + gap;
+                            yPos = row1Height;
                         }
 
                         // Calculate X position
@@ -137,7 +208,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                         // It depends on the widths of previous images in the same row
                         let xPos = 0;
                         for (let i = 0; i < rowIndex; i++) {
-                            xPos += rowImages[i].width + gap;
+                            xPos += rowImages[i].width;
                         }
 
                         // Center vertically within the row
@@ -145,12 +216,33 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
 
                         // Center the row horizontally in the total width?
                         // For now, let's just align left. To center the row:
-                        const rowWidth = rowImages.reduce((sum, i) => sum + i.width, 0) + (gap * (rowImages.length - 1));
+                        const rowWidth = rowImages.reduce((sum, i) => sum + i.width, 0);
                         const rowXOffset = (totalWidth - rowWidth) / 2;
 
                         ctx.drawImage(img, xPos + rowXOffset, yOffset, drawWidth, drawHeight);
+
+                        if (rowIndex < rowImages.length - 1) {
+                            seams.push({
+                                orientation: 'vertical',
+                                x: rowXOffset + xPos + drawWidth,
+                                from: yPos,
+                                to: yPos + rowHeight
+                            });
+                        }
+
+                        if (index === 0 && processedImages.length > splitIndex) {
+                            const row1Height = Math.max(...processedImages.slice(0, splitIndex).map(i => i.height));
+                            seams.push({
+                                orientation: 'horizontal',
+                                y: row1Height,
+                                from: 0,
+                                to: totalWidth
+                            });
+                        }
                     }
                 });
+
+                drawWaveSeams(ctx, seams, totalWidth, totalHeight, seamThickness);
 
                 setCanvasUrl(canvas.toDataURL('image/png'));
             } catch (error) {
@@ -196,6 +288,8 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
 
     if (images.length === 0) return null;
 
+    const seamThickness = clamp(settings.seamThickness ?? 2, 1, 3);
+
     return (
         <div className="stitch-container">
             <div className="controls-header">
@@ -221,18 +315,18 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                         </button>
                     </div>
 
-                    <div className="gap-control">
-                        <label>间距: {settings.gap}px</label>
+                    <div className="seam-control">
+                        <label>粗度: {seamThickness}/3</label>
                         <input
                             type="range"
-                            min="0"
-                            max="20"
-                            step="2"
-                            value={settings.gap}
+                            min="1"
+                            max="3"
+                            step="1"
+                            value={seamThickness}
                             onChange={(e) => {
                                 const val = parseInt(e.target.value);
-                                if (!isNaN(val) && val >= 0 && val <= 20) {
-                                    onSettingsChange(prev => ({ ...prev, gap: val }));
+                                if (!isNaN(val) && val >= 1 && val <= 3) {
+                                    onSettingsChange(prev => ({ ...prev, seamThickness: val }));
                                 }
                             }}
                         />
@@ -242,7 +336,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
 
             <div className="canvas-wrapper">
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
-                {canvasUrl ? (
+                {canvasUrl && !isGenerating ? (
                     <img src={canvasUrl} alt="Stitched Result" className="result-image" />
                 ) : (
                     <div className="loading">拼接中...</div>
@@ -253,7 +347,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                 <button
                     className={`action-btn secondary ${isCopied ? 'copied' : ''}`}
                     onClick={handleCopy}
-                    disabled={!canvasUrl}
+                    disabled={!canvasUrl || isGenerating}
                 >
                     {isCopied ? (
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -261,7 +355,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                         </svg>
                     ) : '复制'}
                 </button>
-                <button className="action-btn primary" onClick={handleDownload} disabled={!canvasUrl}>
+                <button className="action-btn primary" onClick={handleDownload} disabled={!canvasUrl || isGenerating}>
                     下载
                 </button>
             </div>

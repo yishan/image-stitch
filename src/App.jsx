@@ -10,7 +10,7 @@ function App() {
   const [images, setImages] = useState([]);
   const [settings, setSettings] = useState({
     direction: 'vertical', // 'horizontal' | 'vertical'
-    gap: 5,
+    seamThickness: 2,
     backgroundColor: 'rgba(0, 0, 0, 0)',
     scale: 1
   });
