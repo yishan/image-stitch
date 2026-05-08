@@ -10,7 +10,7 @@ function App() {
   const [images, setImages] = useState([]);
   const [settings, setSettings] = useState({
     direction: 'vertical', // 'horizontal' | 'vertical'
-    seamThickness: 2,
+    showWave: true,
     backgroundColor: 'rgba(0, 0, 0, 0)',
     scale: 1
   });

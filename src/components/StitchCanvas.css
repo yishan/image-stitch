@@ -129,9 +129,11 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
 }
 
-.seam-control {
+.wave-control {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -146,42 +148,20 @@
     border-radius: var(--radius-md);
     height: 32px;
     /* Match button height generally */
+    cursor: pointer;
+    user-select: none;
 }
 
-:root[data-theme="light"] .seam-control {
+:root[data-theme="light"] .wave-control {
     background: rgba(255, 255, 255, 0.9);
 }
 
-.seam-control input[type="range"] {
-    width: 120px;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
-    outline: none;
-    -webkit-appearance: none;
-    appearance: none;
-    padding: 0;
-    border: none;
-    cursor: pointer;
-    margin: 0;
-}
-
-.seam-control input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
+.wave-control input[type="checkbox"] {
     width: 16px;
     height: 16px;
-    background: var(--color-primary);
-    border-radius: 50%;
+    accent-color: var(--color-primary);
     cursor: pointer;
-    transition: background 0.2s;
-}
-
-.seam-control input[type="range"]::-webkit-slider-thumb:hover {
-    background: var(--color-primary-hover);
-}
-
-:root[data-theme="light"] .seam-control input[type="range"] {
-    background: rgba(0, 0, 0, 0.1);
+    margin: 0;
 }
 
 

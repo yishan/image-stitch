@@ -1,20 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { createStitchPlan, getWaveOffset } from '../lib/stitchLayout';
 import './StitchCanvas.css';
-
-const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-const getRippleMetrics = (totalWidth, totalHeight, seamThicknessSetting) => {
-    const seamThickness = clamp(Number(seamThicknessSetting) || 2, 1, 3);
-    const baseSize = Math.min(totalWidth, totalHeight);
-    const amplitude = clamp(baseSize * 0.007 * seamThickness, 4, 16);
-    const wavelength = clamp(baseSize * 0.055, 24, 72);
-
-    return { amplitude, wavelength };
-};
-
-const getWaveOffset = (pos, from, amplitude, wavelength) => (
-    Math.sin(((pos - from) / wavelength) * Math.PI * 2) * amplitude
-);
 
 const traceWaveLine = (ctx, seam, offset = 0) => {
     const { orientation, x, y, from, to, amplitude, wavelength } = seam;
@@ -41,12 +27,12 @@ const traceWaveLine = (ctx, seam, offset = 0) => {
     );
 };
 
-const drawRippleSeamShadows = (ctx, seams, totalWidth, totalHeight, seamThicknessSetting) => {
+const drawRippleSeamShadows = (ctx, seams, totalWidth, totalHeight) => {
     if (seams.length === 0) return;
 
-    const seamThickness = clamp(Number(seamThicknessSetting) || 2, 1, 3);
-    const lineWidth = clamp(Math.min(totalWidth, totalHeight) * 0.0018, 1, 2.5);
-    const offset = clamp(seamThickness * 0.85, 0.75, 2.2);
+    const baseSize = Math.min(totalWidth, totalHeight);
+    const lineWidth = Math.min(Math.max(baseSize * 0.0018, 1), 2.5);
+    const offset = 1.7;
 
     ctx.save();
     ctx.lineCap = 'round';
@@ -166,6 +152,18 @@ const drawRippleStitchedImages = (ctx, placements) => {
     });
 };
 
+const drawDirectStitchedImages = (ctx, placements) => {
+    placements.forEach((placement) => {
+        ctx.drawImage(
+            placement.img,
+            placement.x,
+            placement.y,
+            placement.width,
+            placement.height
+        );
+    });
+};
+
 const StitchCanvas = ({ images, settings, onSettingsChange }) => {
     const canvasRef = useRef(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -190,63 +188,13 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                     }))
                 );
 
-                // Calculate dimensions
-                const { direction, backgroundColor, seamThickness = 2 } = settings;
-                let totalWidth = 0;
-                let totalHeight = 0;
-
-                // Pre-process images for unified dimensions
-                let processedImages = loadedImages.map(img => ({
-                    img,
-                    width: img.width,
-                    height: img.height,
-                    original: img
-                }));
-
-                if (direction === 'horizontal') {
-                    const maxHeight = Math.max(...loadedImages.map(img => img.height));
-                    processedImages = processedImages.map(item => {
-                        const scaleFactor = maxHeight / item.height;
-                        return {
-                            ...item,
-                            width: item.width * scaleFactor,
-                            height: maxHeight
-                        };
-                    });
-                } else if (direction === 'vertical' || direction === 'collage') {
-                    const maxWidth = Math.max(...loadedImages.map(img => img.width));
-                    processedImages = processedImages.map(item => {
-                        const scaleFactor = maxWidth / item.width;
-                        return {
-                            ...item,
-                            width: maxWidth,
-                            height: item.height * scaleFactor
-                        };
-                    });
-                }
-
-                if (direction === 'horizontal') {
-                    totalWidth = processedImages.reduce((sum, item) => sum + item.width, 0);
-                    totalHeight = Math.max(...processedImages.map(item => item.height));
-                } else if (direction === 'vertical') {
-                    totalWidth = Math.max(...processedImages.map(item => item.width));
-                    totalHeight = processedImages.reduce((sum, item) => sum + item.height, 0);
-                } else if (direction === 'collage') {
-                    // Determine split index: 2 for 4 images (2x2), 3 for others (3 per row)
-                    const splitIndex = processedImages.length === 4 ? 2 : 3;
-
-                    const row1 = processedImages.slice(0, splitIndex);
-                    const row2 = processedImages.slice(splitIndex, splitIndex * 2);
-
-                    const row1Width = row1.reduce((sum, item) => sum + item.width, 0);
-                    const row1Height = row1.length > 0 ? Math.max(...row1.map(item => item.height)) : 0;
-
-                    const row2Width = row2.reduce((sum, item) => sum + item.width, 0);
-                    const row2Height = row2.length > 0 ? Math.max(...row2.map(item => item.height)) : 0;
-
-                    totalWidth = Math.max(row1Width, row2Width);
-                    totalHeight = row1Height + row2Height;
-                }
+                const { backgroundColor } = settings;
+                const {
+                    totalWidth,
+                    totalHeight,
+                    placements,
+                    seamShadows
+                } = createStitchPlan(loadedImages, settings);
 
                 const canvas = canvasRef.current;
                 canvas.width = totalWidth;
@@ -257,196 +205,12 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                 ctx.fillStyle = backgroundColor;
                 ctx.fillRect(0, 0, totalWidth, totalHeight);
 
-                // Draw images through clipped wave-shaped regions so adjoining photos interlock.
-                let currentX = 0;
-                let currentY = 0;
-                const placements = [];
-                const seamShadows = [];
-                const { amplitude, wavelength } = getRippleMetrics(totalWidth, totalHeight, seamThickness);
-
-                processedImages.forEach((item, index) => {
-                    const img = item.original; // Use original image for drawing, but with calculated dimensions
-                    const drawWidth = item.width;
-                    const drawHeight = item.height;
-
-                    if (direction === 'horizontal') {
-                        // Center vertically if heights differ (though they should be same if sameDimension is true)
-                        const yOffset = (totalHeight - drawHeight) / 2;
-                        const leftEdge = index > 0
-                            ? {
-                                orientation: 'vertical',
-                                x: currentX,
-                                from: yOffset,
-                                amplitude,
-                                wavelength
-                            }
-                            : null;
-                        const rightEdge = index < processedImages.length - 1
-                            ? {
-                                orientation: 'vertical',
-                                x: currentX + drawWidth,
-                                from: yOffset,
-                                to: yOffset + drawHeight,
-                                amplitude,
-                                wavelength
-                            }
-                            : null;
-
-                        if (rightEdge) {
-                            seamShadows.push(rightEdge);
-                        }
-
-                        placements.push({
-                            img,
-                            x: currentX,
-                            y: yOffset,
-                            width: drawWidth,
-                            height: drawHeight,
-                            leftEdge,
-                            rightEdge
-                        });
-
-                        currentX += drawWidth;
-                    } else if (direction === 'vertical') {
-                        // Center horizontally if widths differ (though they should be same if sameDimension is true)
-                        const xOffset = (totalWidth - drawWidth) / 2;
-                        const topEdge = index > 0
-                            ? {
-                                orientation: 'horizontal',
-                                y: currentY,
-                                from: xOffset,
-                                amplitude,
-                                wavelength
-                            }
-                            : null;
-                        const bottomEdge = index < processedImages.length - 1
-                            ? {
-                                orientation: 'horizontal',
-                                y: currentY + drawHeight,
-                                from: xOffset,
-                                to: xOffset + drawWidth,
-                                amplitude,
-                                wavelength
-                            }
-                            : null;
-
-                        if (bottomEdge) {
-                            seamShadows.push(bottomEdge);
-                        }
-
-                        placements.push({
-                            img,
-                            x: xOffset,
-                            y: currentY,
-                            width: drawWidth,
-                            height: drawHeight,
-                            topEdge,
-                            bottomEdge
-                        });
-
-                        currentY += drawHeight;
-                    } else if (direction === 'collage') {
-                        // Determine split index again for drawing
-                        const splitIndex = processedImages.length === 4 ? 2 : 3;
-
-                        // Determine which row this image belongs to
-                        const isRow1 = index < splitIndex;
-                        const rowImages = isRow1 ? processedImages.slice(0, splitIndex) : processedImages.slice(splitIndex, splitIndex * 2);
-                        const rowIndex = isRow1 ? index : index - splitIndex;
-
-                        // Calculate row height for vertical centering within the row
-                        const rowHeight = Math.max(...rowImages.map(i => i.height));
-
-                        // Calculate Y position
-                        let yPos = 0;
-                        if (!isRow1) {
-                            const row1Height = Math.max(...processedImages.slice(0, splitIndex).map(i => i.height));
-                            yPos = row1Height;
-                        }
-
-                        // Calculate X position
-                        // We need to know the X position of this specific image in its row
-                        // It depends on the widths of previous images in the same row
-                        let xPos = 0;
-                        for (let i = 0; i < rowIndex; i++) {
-                            xPos += rowImages[i].width;
-                        }
-
-                        // Center vertically within the row
-                        const yOffset = yPos + (rowHeight - drawHeight) / 2;
-
-                        // Center the row horizontally in the total width?
-                        // For now, let's just align left. To center the row:
-                        const rowWidth = rowImages.reduce((sum, i) => sum + i.width, 0);
-                        const rowXOffset = (totalWidth - rowWidth) / 2;
-                        const x = xPos + rowXOffset;
-
-                        const leftEdge = rowIndex > 0
-                            ? {
-                                orientation: 'vertical',
-                                x,
-                                from: yPos,
-                                amplitude,
-                                wavelength
-                            }
-                            : null;
-                        const rightEdge = rowIndex < rowImages.length - 1
-                            ? {
-                                orientation: 'vertical',
-                                x: x + drawWidth,
-                                from: yPos,
-                                to: yPos + rowHeight,
-                                amplitude,
-                                wavelength
-                            }
-                            : null;
-                        const row1Height = processedImages.length > splitIndex
-                            ? Math.max(...processedImages.slice(0, splitIndex).map(i => i.height))
-                            : 0;
-                        const topEdge = !isRow1
-                            ? {
-                                orientation: 'horizontal',
-                                y: row1Height,
-                                from: 0,
-                                amplitude,
-                                wavelength
-                            }
-                            : null;
-                        const bottomEdge = isRow1 && processedImages.length > splitIndex
-                            ? {
-                                orientation: 'horizontal',
-                                y: row1Height,
-                                from: 0,
-                                to: totalWidth,
-                                amplitude,
-                                wavelength
-                            }
-                            : null;
-
-                        if (rightEdge) {
-                            seamShadows.push(rightEdge);
-                        }
-
-                        if (bottomEdge) {
-                            seamShadows.push(bottomEdge);
-                        }
-
-                        placements.push({
-                            img,
-                            x,
-                            y: yOffset,
-                            width: drawWidth,
-                            height: drawHeight,
-                            topEdge,
-                            rightEdge,
-                            bottomEdge,
-                            leftEdge
-                        });
-                    }
-                });
-
-                drawRippleStitchedImages(ctx, placements);
-                drawRippleSeamShadows(ctx, seamShadows, totalWidth, totalHeight, seamThickness);
+                if (settings.showWave === false) {
+                    drawDirectStitchedImages(ctx, placements);
+                } else {
+                    drawRippleStitchedImages(ctx, placements);
+                    drawRippleSeamShadows(ctx, seamShadows, totalWidth, totalHeight);
+                }
 
                 setCanvasUrl(canvas.toDataURL('image/png'));
             } catch (error) {
@@ -492,7 +256,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
 
     if (images.length === 0) return null;
 
-    const seamThickness = clamp(settings.seamThickness ?? 2, 1, 3);
+    const showWave = settings.showWave !== false;
 
     return (
         <div className="stitch-container">
@@ -519,22 +283,17 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                         </button>
                     </div>
 
-                    <div className="seam-control">
-                        <label>粗度: {seamThickness}/3</label>
+                    <label className="wave-control">
                         <input
-                            type="range"
-                            min="1"
-                            max="3"
-                            step="1"
-                            value={seamThickness}
-                            onChange={(e) => {
-                                const val = parseInt(e.target.value);
-                                if (!isNaN(val) && val >= 1 && val <= 3) {
-                                    onSettingsChange(prev => ({ ...prev, seamThickness: val }));
-                                }
-                            }}
+                            type="checkbox"
+                            checked={showWave}
+                            onChange={(e) => onSettingsChange(prev => ({
+                                ...prev,
+                                showWave: e.target.checked
+                            }))}
                         />
-                    </div>
+                        <span>分隔线</span>
+                    </label>
                 </div>
             </div>
 
