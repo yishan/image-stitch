@@ -6,10 +6,18 @@ export const getWaveOffset = (pos, from, amplitude, wavelength) => (
 
 export const getRippleMetrics = (totalWidth, totalHeight) => {
     const baseSize = Math.min(totalWidth, totalHeight);
-    const amplitude = clamp(baseSize * 0.014, 4, 16);
-    const wavelength = clamp(baseSize * 0.055, 24, 72);
+    const amplitude = clamp(baseSize * 0.004, 2.5, 5.5);
+    const wavelength = clamp(baseSize * 0.018, 16, 30);
 
     return { amplitude, wavelength };
+};
+
+export const getSeamStrokeMetrics = (totalWidth, totalHeight) => {
+    const baseSize = Math.min(totalWidth, totalHeight);
+    const lineWidth = clamp(baseSize * 0.001, 0.75, 1.4);
+    const offset = clamp(baseSize * 0.00045, 0.7, 1.1);
+
+    return { lineWidth, offset };
 };
 
 const normalizeImages = (loadedImages, direction) => {

@@ -53,3 +53,26 @@ test('wave stitch mode remains the default', async () => {
     assert.ok(plan.placements[0].bottomEdge);
     assert.ok(plan.placements[1].topEdge);
 });
+
+test('wave metrics stay compact and dense across image resolutions', async () => {
+    const { getRippleMetrics } = await loadLayoutModule();
+
+    const small = getRippleMetrics(480, 320);
+    const large = getRippleMetrics(3600, 2400);
+
+    assert.ok(small.amplitude <= 5, 'small images should keep a low wave height');
+    assert.ok(small.wavelength <= 28, 'small images should keep close wave spacing');
+    assert.ok(large.amplitude <= 6, 'large images should not scale to bulky waves');
+    assert.ok(large.wavelength <= 32, 'large images should not scale to sparse waves');
+});
+
+test('seam stroke metrics keep the divider visually thin', async () => {
+    const { getSeamStrokeMetrics } = await loadLayoutModule();
+
+    assert.equal(typeof getSeamStrokeMetrics, 'function');
+
+    const metrics = getSeamStrokeMetrics(3600, 2400);
+
+    assert.ok(metrics.lineWidth <= 1.5, 'seam stroke should stay thin on large images');
+    assert.ok(metrics.offset <= 1.2, 'shadow offset should not make the divider look wide');
+});

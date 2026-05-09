@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { createStitchPlan, getWaveOffset } from '../lib/stitchLayout';
+import { createStitchPlan, getSeamStrokeMetrics, getWaveOffset } from '../lib/stitchLayout';
 import './StitchCanvas.css';
 
 const traceWaveLine = (ctx, seam, offset = 0) => {
@@ -30,9 +30,7 @@ const traceWaveLine = (ctx, seam, offset = 0) => {
 const drawRippleSeamShadows = (ctx, seams, totalWidth, totalHeight) => {
     if (seams.length === 0) return;
 
-    const baseSize = Math.min(totalWidth, totalHeight);
-    const lineWidth = Math.min(Math.max(baseSize * 0.0018, 1), 2.5);
-    const offset = 1.7;
+    const { lineWidth, offset } = getSeamStrokeMetrics(totalWidth, totalHeight);
 
     ctx.save();
     ctx.lineCap = 'round';
