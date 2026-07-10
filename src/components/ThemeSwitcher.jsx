@@ -6,8 +6,8 @@ const ThemeSwitcher = ({ theme, toggleTheme }) => {
         <button
             className="theme-switcher"
             onClick={toggleTheme}
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
+            aria-label={`切换到${theme === 'light' ? '深色' : '浅色'}主题`}
+            title={`切换到${theme === 'light' ? '深色' : '浅色'}主题`}
         >
             {theme === 'light' ? (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

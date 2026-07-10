@@ -260,7 +260,7 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
                 seamShadows.push(rightEdge);
             }
 
-            if (bottomEdge) {
+            if (bottomEdge && rowIndex === 0) {
                 seamShadows.push(bottomEdge);
             }
 

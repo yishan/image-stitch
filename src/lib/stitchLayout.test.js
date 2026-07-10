@@ -76,3 +76,12 @@ test('seam stroke metrics keep the divider visually thin', async () => {
     assert.ok(metrics.lineWidth <= 1.5, 'seam stroke should stay thin on large images');
     assert.ok(metrics.offset <= 1.2, 'shadow offset should not make the divider look wide');
 });
+
+test('collage mode draws each shared seam shadow only once', async () => {
+    const { createStitchPlan } = await loadLayoutModule();
+    const images = Array.from({ length: 6 }, () => ({ width: 100, height: 100 }));
+
+    const plan = createStitchPlan(images, { direction: 'collage', showWave: true });
+
+    assert.equal(plan.seamShadows.length, 5);
+});

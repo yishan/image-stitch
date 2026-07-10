@@ -1,25 +1,93 @@
 .stitch-container {
     width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     gap: var(--spacing-md);
+    justify-items: center;
+}
+
+.controls-header,
+.actions {
+    width: min(100%, 600px);
+}
+
+.setting-group {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
-    margin-top: 0;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.toggle-group {
+    display: flex;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px;
+    border-radius: var(--radius-md);
+}
+
+:root[data-theme="light"] .toggle-group {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.toggle-group button {
+    padding: 6px 16px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggle-group button.active {
+    background: var(--color-primary);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-group button:hover:not(.active) {
+    color: var(--color-text);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.wave-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px 12px;
+    border-radius: var(--radius-md);
+    min-height: 32px;
+    cursor: pointer;
+    user-select: none;
+}
+
+:root[data-theme="light"] .wave-control {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.wave-control input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+    margin: 0;
 }
 
 .canvas-wrapper {
-    width: 100%;
-    max-width: 600px;
-    aspect-ratio: 1 / 1;
-    flex: 0 0 auto;
-    /* Don't stretch, respect aspect ratio */
-    overflow: hidden;
-    /* Hide overflow if image is huge, or auto if we want scroll */
+    width: min(100%, 600px);
+    height: 100%;
+    min-height: 0;
+    max-height: 600px;
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
     background: rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-lg);
     padding: var(--spacing-md);
@@ -27,36 +95,56 @@
 }
 
 :root[data-theme="light"] .canvas-wrapper {
-    background: rgba(0, 0, 0, 0.03) !important;
-    box-shadow: none !important;
-    padding: var(--spacing-md) !important;
-    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid var(--glass-border);
 }
 
-.canvas-wrapper canvas,
+.hidden-canvas {
+    display: none;
+}
+
 .result-image {
     max-width: 100%;
     max-height: 100%;
+    width: auto;
+    height: auto;
     object-fit: contain;
-    /* box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); */
 }
 
-.loading {
+.loading,
+.canvas-error {
     color: var(--color-text-secondary);
+    text-align: center;
+}
+
+.canvas-error {
+    display: grid;
+    gap: var(--spacing-sm);
+    justify-items: center;
+}
+
+.canvas-error button {
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--color-primary);
+    color: white;
 }
 
 .actions {
     display: flex;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
 }
 
 .action-btn {
-    padding: var(--spacing-sm) var(--spacing-xl);
+    flex: 1 1 120px;
+    min-width: 0;
+    white-space: nowrap;
+    padding: var(--spacing-sm) var(--spacing-lg);
     border-radius: var(--radius-full);
     font-weight: 600;
     font-size: 1rem;
-    transition: all 0.2s ease;
-    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
     border: 1px solid transparent;
     display: flex;
     align-items: center;
@@ -77,12 +165,10 @@
 :root[data-theme="light"] .action-btn.primary {
     background: var(--color-primary);
     box-shadow: none;
-    color: white;
 }
 
 :root[data-theme="light"] .action-btn.primary:hover {
     background: var(--color-primary-hover);
-    box-shadow: none;
 }
 
 .action-btn.secondary {
@@ -97,77 +183,12 @@
 
 :root[data-theme="light"] .action-btn.secondary:hover {
     background: rgba(0, 0, 0, 0.05);
-    /* Light grey hover */
 }
 
 .action-btn.secondary.copied {
-    background: #10b981;
-    color: white;
-    border-color: #10b981;
-}
-
-:root[data-theme="light"] .action-btn.secondary.copied {
     background: #15803d;
-    /* Dark green */
-    border-color: #15803d;
     color: white;
-}
-
-.action-btn.secondary.copied:hover {
-    background: #059669;
-    border-color: #059669;
-}
-
-.controls-header {
-    width: 100%;
-    display: flex;
-    justify-content: flex-start;
-}
-
-.setting-group {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: var(--spacing-md);
-    flex-wrap: wrap;
-}
-
-.wave-control {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: 16px;
-    color: var(--color-text-secondary);
-    font-size: 0.9rem;
-    font-weight: 500;
-
-    /* Matches .toggle-group style */
-    background: rgba(0, 0, 0, 0.5);
-    padding: 4px 12px;
-    border-radius: var(--radius-md);
-    height: 32px;
-    /* Match button height generally */
-    cursor: pointer;
-    user-select: none;
-}
-
-:root[data-theme="light"] .wave-control {
-    background: rgba(255, 255, 255, 0.9);
-}
-
-.wave-control input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    accent-color: var(--color-primary);
-    cursor: pointer;
-    margin: 0;
-}
-
-
-
-.action-btn:active {
-    transform: translateY(0);
+    border-color: #15803d;
 }
 
 .action-btn:disabled {
@@ -175,4 +196,14 @@
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
+}
+
+@media (max-width: 480px) {
+    .setting-group {
+        align-items: flex-start;
+    }
+
+    .toggle-group button {
+        padding-inline: 12px;
+    }
 }

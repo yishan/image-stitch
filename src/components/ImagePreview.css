@@ -17,7 +17,7 @@
     flex-direction: column;
 }
 
-.preview-header h3 {
+.preview-header h2 {
     font-size: 1.1rem;
     font-weight: 600;
     margin-bottom: var(--spacing-xs);
@@ -35,7 +35,7 @@
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .reset-btn:hover {
@@ -89,7 +89,7 @@
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
 }
 
 .remove-btn:hover {
@@ -100,8 +100,43 @@
     opacity: 1;
 }
 
+.preview-item:focus-within .remove-btn {
+    opacity: 1;
+}
+
+.preview-item-footer {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
 .image-index {
     font-size: 0.8rem;
     color: var(--color-text-secondary);
     font-weight: 500;
+}
+
+.drag-handle {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--color-text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border);
+    cursor: grab;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+@media (hover: none) {
+    .remove-btn {
+        opacity: 1;
+    }
 }

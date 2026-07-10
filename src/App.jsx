@@ -1,93 +1,75 @@
-import { useState, useEffect, useCallback } from 'react'
-import { arrayMove } from '@dnd-kit/sortable'
-import './App.css'
-import ImageUploader from './components/ImageUploader'
-import ImagePreview from './components/ImagePreview'
-import StitchCanvas from './components/StitchCanvas'
-import ThemeSwitcher from './components/ThemeSwitcher'
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { arrayMove } from '@dnd-kit/sortable';
+import './App.css';
+import ImageUploader from './components/ImageUploader';
+import ImagePreview from './components/ImagePreview';
+import StitchCanvas from './components/StitchCanvas';
+import ThemeSwitcher from './components/ThemeSwitcher';
+import { addImageFiles, releaseImageUrls, removeImage } from './lib/imageIntake';
 
 function App() {
   const [images, setImages] = useState([]);
+  const imagesRef = useRef([]);
   const [settings, setSettings] = useState({
-    direction: 'vertical', // 'horizontal' | 'vertical'
+    direction: 'vertical',
     showWave: true,
-    backgroundColor: 'rgba(0, 0, 0, 0)',
-    scale: 1
+    backgroundColor: 'rgba(0, 0, 0, 0)'
   });
-
-  // Theme state
-  const [theme, setTheme] = useState(() => {
-    const savedTheme = localStorage.getItem('theme');
-    return savedTheme || 'dark';
-  });
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  useEffect(() => () => releaseImageUrls(imagesRef.current), []);
+
   const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+    setTheme((previousTheme) => (previousTheme === 'light' ? 'dark' : 'light'));
   };
 
-  const handleImagesUpload = useCallback((newFiles) => {
-    if (images.length + newFiles.length > 6) {
-      alert('You can only upload up to 6 images.');
-      // Optionally slice the array to fit 6
-      const remainingSlots = 6 - images.length;
-      if (remainingSlots <= 0) return;
-      newFiles = newFiles.slice(0, remainingSlots);
-    }
+  const handleImagesUpload = useCallback((files) => {
+    const result = addImageFiles(imagesRef.current, files);
+    imagesRef.current = result.images;
+    setImages(result.images);
 
-    const newImages = newFiles.map(file => ({
-      id: Math.random().toString(36).substr(2, 9),
-      file,
-      url: URL.createObjectURL(file)
-    }));
+    const messages = [];
+    if (result.rejected.nonImage > 0) messages.push(`${result.rejected.nonImage} 个非图片文件未添加`);
+    if (result.rejected.overLimit > 0) messages.push(`最多保留 6 张图片，已忽略 ${result.rejected.overLimit} 张`);
+    setUploadMessage(messages.join('；'));
+  }, []);
 
-    setImages(prev => [...prev, ...newImages]);
-  }, [images]);
+  const handleRemoveImage = useCallback((id) => {
+    const nextImages = removeImage(imagesRef.current, id);
+    imagesRef.current = nextImages;
+    setImages(nextImages);
+    setUploadMessage('');
+  }, []);
 
-  const handleRemoveImage = (id) => {
-    setImages(prev => {
-      const newImages = prev.filter(img => img.id !== id);
-      // Revoke URL to avoid memory leaks
-      const removedImage = prev.find(img => img.id === id);
-      if (removedImage) {
-        URL.revokeObjectURL(removedImage.url);
-      }
-      return newImages;
-    });
-  };
-
-  const handleReset = () => {
-    images.forEach(img => URL.revokeObjectURL(img.url));
+  const handleReset = useCallback(() => {
+    releaseImageUrls(imagesRef.current);
+    imagesRef.current = [];
     setImages([]);
-  };
+    setUploadMessage('');
+  }, []);
 
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
+  const handleDragEnd = useCallback(({ active, over }) => {
+    if (!over || active.id === over.id) return;
 
-    if (active.id !== over.id) {
-      setImages((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
+    const oldIndex = imagesRef.current.findIndex((item) => item.id === active.id);
+    const newIndex = imagesRef.current.findIndex((item) => item.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
 
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-  };
+    const nextImages = arrayMove(imagesRef.current, oldIndex, newIndex);
+    imagesRef.current = nextImages;
+    setImages(nextImages);
+  }, []);
 
-  // Global paste handler
   useEffect(() => {
-    const handlePaste = (e) => {
-      if (e.clipboardData && e.clipboardData.files) {
-        const files = Array.from(e.clipboardData.files);
-        const imageFiles = files.filter(file => file.type.startsWith('image/'));
-        if (imageFiles.length > 0) {
-          handleImagesUpload(imageFiles);
-        }
-      }
+    const handlePaste = (event) => {
+      const files = Array.from(event.clipboardData?.files || []);
+      if (files.length > 0) handleImagesUpload(files);
     };
 
     window.addEventListener('paste', handlePaste);
@@ -96,12 +78,12 @@ function App() {
 
   return (
     <div className="app-container">
-      <div className="app-content">
-        <div className="left-panel">
+      <main className="app-content">
+        <section className="left-panel" aria-labelledby="app-title">
           <header className="app-header">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div className="header-row">
               <div>
-                <h1>图片拼接助手</h1>
+                <h1 id="app-title">图片拼接助手</h1>
                 <p>将多张图片无缝拼接成一张长图。</p>
               </div>
               <ThemeSwitcher theme={theme} toggleTheme={toggleTheme} />
@@ -110,41 +92,32 @@ function App() {
 
           <div className="input-section">
             <ImageUploader onImagesUpload={handleImagesUpload} />
-
+            {uploadMessage && <p className="upload-message" role="status">{uploadMessage}</p>}
             {images.length > 0 && (
-              <>
-
-
-                <ImagePreview
-                  images={images}
-                  onRemoveImage={handleRemoveImage}
-                  onDragEnd={handleDragEnd}
-                  onReset={handleReset}
-                />
-              </>
+              <ImagePreview
+                images={images}
+                onRemoveImage={handleRemoveImage}
+                onDragEnd={handleDragEnd}
+                onReset={handleReset}
+              />
             )}
           </div>
+
           <footer className="app-footer">
             <p>Made by <a href="https://yishan.li" target="_blank" rel="noopener noreferrer">Yishan</a> with Gemini 3</p>
           </footer>
-        </div>
+        </section>
 
-        <div className="right-panel">
+        <section className="right-panel" aria-label="拼接结果">
           {images.length > 0 ? (
-            <StitchCanvas
-              images={images}
-              settings={settings}
-              onSettingsChange={setSettings}
-            />
+            <StitchCanvas images={images} settings={settings} onSettingsChange={setSettings} />
           ) : (
-            <div className="empty-state">
-              <p>上传图片以在此处预览</p>
-            </div>
+            <div className="empty-state"><p>上传图片以在此处预览</p></div>
           )}
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

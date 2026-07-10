@@ -1,16 +1,46 @@
-# React + Vite
+# 图片拼接助手
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+本地浏览器中的图片拼接工具：上传、粘贴或拖入最多 6 张图片，调整顺序后生成横向、纵向或网格拼图，并可复制或下载 PNG。
 
-Currently, two official plugins are available:
+## 功能与限制
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 支持拖拽、文件选择和粘贴图片；可用键盘操作上传和排序。
+- 支持横向、纵向、网格三种布局，以及波浪分隔线。
+- 图片只在浏览器 Canvas 中处理，不会上传到服务器。
+- 为避免浏览器内存耗尽，输出会限制在最大边长 8192px 和 2,000 万像素以内；必要时会等比缩小。
 
-## React Compiler
+## 本地开发
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+需要 Node.js 20.19 或更高版本，推荐使用仓库中的 Node 22 配置：
 
-## Expanding the ESLint configuration
+```bash
+nvm use
+npm ci
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+常用检查：
+
+```bash
+npm test
+npm run lint
+npm run build
+npm run preview
+```
+
+## 部署
+
+默认构建面向根路径站点。若部署到 GitHub Pages 等仓库子路径，请在构建时提供路径：
+
+```bash
+VITE_BASE_PATH=/repository-name/ npm run build
+```
+
+静态托管平台应将构建命令设为 `npm run build`，发布目录设为 `dist`。
+
+## 项目结构
+
+- `src/lib/imageIntake.js`：图片验证、数量限制和 Object URL 生命周期。
+- `src/lib/stitchLayout.js`：三种布局的几何计算与 seam 数据。
+- `src/lib/stitchRenderer.js`：Canvas 绘制、输出限额和 PNG 编码。
+- `src/components/`：上传、排序预览、设置和结果交互。

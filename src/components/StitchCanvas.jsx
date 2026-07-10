@@ -1,225 +1,74 @@
 import { useEffect, useRef, useState } from 'react';
-import { createStitchPlan, getSeamStrokeMetrics, getWaveOffset } from '../lib/stitchLayout';
+import { canvasToBlob, loadImagesForRender, releaseRenderableImages, renderStitch } from '../lib/stitchRenderer.js';
 import './StitchCanvas.css';
-
-const traceWaveLine = (ctx, seam, offset = 0) => {
-    const { orientation, x, y, from, to, amplitude, wavelength } = seam;
-    const step = 4;
-
-    ctx.beginPath();
-
-    for (let pos = from; pos <= to; pos += step) {
-        const waveOffset = getWaveOffset(pos, from, amplitude, wavelength);
-        const pointX = orientation === 'vertical' ? x + waveOffset + offset : pos;
-        const pointY = orientation === 'vertical' ? pos : y + waveOffset + offset;
-
-        if (pos === from) {
-            ctx.moveTo(pointX, pointY);
-        } else {
-            ctx.lineTo(pointX, pointY);
-        }
-    }
-
-    const finalWaveOffset = getWaveOffset(to, from, amplitude, wavelength);
-    ctx.lineTo(
-        orientation === 'vertical' ? x + finalWaveOffset + offset : to,
-        orientation === 'vertical' ? to : y + finalWaveOffset + offset
-    );
-};
-
-const drawRippleSeamShadows = (ctx, seams, totalWidth, totalHeight) => {
-    if (seams.length === 0) return;
-
-    const { lineWidth, offset } = getSeamStrokeMetrics(totalWidth, totalHeight);
-
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = lineWidth;
-
-    seams.forEach((seam) => {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
-        traceWaveLine(ctx, seam, -offset);
-        ctx.stroke();
-
-        ctx.strokeStyle = 'rgba(40, 40, 40, 0.42)';
-        traceWaveLine(ctx, seam, offset);
-        ctx.stroke();
-    });
-
-    ctx.restore();
-};
-
-const addHorizontalEdge = (ctx, edge, left, right, reverse = false) => {
-    const step = 4;
-    const start = reverse ? right : left;
-    const end = reverse ? left : right;
-    const direction = reverse ? -step : step;
-
-    for (let x = start; reverse ? x >= end : x <= end; x += direction) {
-        const y = edge
-            ? edge.y + getWaveOffset(x, edge.from, edge.amplitude, edge.wavelength)
-            : edge?.fallbackY;
-        ctx.lineTo(x, y);
-    }
-
-    if ((reverse && start !== end) || (!reverse && start !== end)) {
-        const finalY = edge
-            ? edge.y + getWaveOffset(end, edge.from, edge.amplitude, edge.wavelength)
-            : edge?.fallbackY;
-        ctx.lineTo(end, finalY);
-    }
-};
-
-const addVerticalEdge = (ctx, edge, top, bottom, reverse = false) => {
-    const step = 4;
-    const start = reverse ? bottom : top;
-    const end = reverse ? top : bottom;
-    const direction = reverse ? -step : step;
-
-    for (let y = start; reverse ? y >= end : y <= end; y += direction) {
-        const x = edge
-            ? edge.x + getWaveOffset(y, edge.from, edge.amplitude, edge.wavelength)
-            : edge?.fallbackX;
-        ctx.lineTo(x, y);
-    }
-
-    if ((reverse && start !== end) || (!reverse && start !== end)) {
-        const finalX = edge
-            ? edge.x + getWaveOffset(end, edge.from, edge.amplitude, edge.wavelength)
-            : edge?.fallbackX;
-        ctx.lineTo(finalX, end);
-    }
-};
-
-const createImageClipPath = (ctx, placement) => {
-    const { x, y, width, height, topEdge, rightEdge, bottomEdge, leftEdge } = placement;
-    const topY = y;
-    const rightX = x + width;
-    const bottomY = y + height;
-    const leftX = x;
-
-    ctx.beginPath();
-    ctx.moveTo(leftX, topEdge ? topEdge.y + getWaveOffset(leftX, topEdge.from, topEdge.amplitude, topEdge.wavelength) : topY);
-
-    if (topEdge) {
-        addHorizontalEdge(ctx, topEdge, leftX, rightX);
-    } else {
-        ctx.lineTo(rightX, topY);
-    }
-
-    if (rightEdge) {
-        addVerticalEdge(ctx, rightEdge, topY, bottomY);
-    } else {
-        ctx.lineTo(rightX, bottomY);
-    }
-
-    if (bottomEdge) {
-        addHorizontalEdge(ctx, bottomEdge, leftX, rightX, true);
-    } else {
-        ctx.lineTo(leftX, bottomY);
-    }
-
-    if (leftEdge) {
-        addVerticalEdge(ctx, leftEdge, topY, bottomY, true);
-    } else {
-        ctx.lineTo(leftX, topY);
-    }
-
-    ctx.closePath();
-};
-
-const drawRippleStitchedImages = (ctx, placements) => {
-    placements.forEach((placement) => {
-        const leftOverlap = placement.leftEdge?.amplitude ?? 0;
-        const rightOverlap = placement.rightEdge?.amplitude ?? 0;
-        const topOverlap = placement.topEdge?.amplitude ?? 0;
-        const bottomOverlap = placement.bottomEdge?.amplitude ?? 0;
-
-        ctx.save();
-        createImageClipPath(ctx, placement);
-        ctx.clip();
-        ctx.drawImage(
-            placement.img,
-            placement.x - leftOverlap,
-            placement.y - topOverlap,
-            placement.width + leftOverlap + rightOverlap,
-            placement.height + topOverlap + bottomOverlap
-        );
-        ctx.restore();
-    });
-};
-
-const drawDirectStitchedImages = (ctx, placements) => {
-    placements.forEach((placement) => {
-        ctx.drawImage(
-            placement.img,
-            placement.x,
-            placement.y,
-            placement.width,
-            placement.height
-        );
-    });
-};
 
 const StitchCanvas = ({ images, settings, onSettingsChange }) => {
     const canvasRef = useRef(null);
+    const generationRef = useRef(0);
+    const outputUrlRef = useRef(null);
+    const copyTimerRef = useRef(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [canvasUrl, setCanvasUrl] = useState(null);
+    const [error, setError] = useState('');
     const [isCopied, setIsCopied] = useState(false);
+    const [retryKey, setRetryKey] = useState(0);
+
+    useEffect(() => () => {
+        generationRef.current += 1;
+        if (outputUrlRef.current) URL.revokeObjectURL(outputUrlRef.current);
+        if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+    }, []);
 
     useEffect(() => {
-        if (images.length === 0) return;
+        if (images.length === 0) return undefined;
+
+        let cancelled = false;
+        const generation = ++generationRef.current;
+
+        if (outputUrlRef.current) {
+            URL.revokeObjectURL(outputUrlRef.current);
+            outputUrlRef.current = null;
+        }
+        setCanvasUrl(null);
+        setError('');
+        setIsGenerating(true);
+
+        const isCurrentGeneration = () => !cancelled && generation === generationRef.current;
 
         const generateImage = async () => {
-            setIsGenerating(true);
-            setCanvasUrl(null);
+            let loadedImages = [];
 
             try {
-                // Load all images
-                const loadedImages = await Promise.all(
-                    images.map(img => new Promise((resolve, reject) => {
-                        const image = new Image();
-                        image.onload = () => resolve(image);
-                        image.onerror = reject;
-                        image.src = img.url;
-                    }))
-                );
-
-                const { backgroundColor } = settings;
-                const {
-                    totalWidth,
-                    totalHeight,
-                    placements,
-                    seamShadows
-                } = createStitchPlan(loadedImages, settings);
+                loadedImages = await loadImagesForRender(images);
+                if (!isCurrentGeneration()) return;
 
                 const canvas = canvasRef.current;
-                canvas.width = totalWidth;
-                canvas.height = totalHeight;
-                const ctx = canvas.getContext('2d');
+                if (!canvas) throw new Error('拼接画布未准备完成，请重试。');
 
-                // Fill background
-                ctx.fillStyle = backgroundColor;
-                ctx.fillRect(0, 0, totalWidth, totalHeight);
+                renderStitch(canvas, loadedImages, settings);
+                const blob = await canvasToBlob(canvas);
+                if (!isCurrentGeneration()) return;
 
-                if (settings.showWave === false) {
-                    drawDirectStitchedImages(ctx, placements);
-                } else {
-                    drawRippleStitchedImages(ctx, placements);
-                    drawRippleSeamShadows(ctx, seamShadows, totalWidth, totalHeight);
+                const nextUrl = URL.createObjectURL(blob);
+                outputUrlRef.current = nextUrl;
+                setCanvasUrl(nextUrl);
+            } catch (generationError) {
+                if (isCurrentGeneration()) {
+                    setError(generationError.message || '拼接失败，请检查图片后重试。');
                 }
-
-                setCanvasUrl(canvas.toDataURL('image/png'));
-            } catch (error) {
-                console.error("Error stitching images:", error);
             } finally {
-                setIsGenerating(false);
+                releaseRenderableImages(loadedImages);
+                if (isCurrentGeneration()) setIsGenerating(false);
             }
         };
 
         generateImage();
-    }, [images, settings]);
+
+        return () => {
+            cancelled = true;
+            if (generationRef.current === generation) generationRef.current += 1;
+        };
+    }, [images, settings, retryKey]);
 
     const handleDownload = () => {
         if (!canvasUrl) return;
@@ -233,61 +82,53 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
         if (!canvasRef.current) return;
 
         try {
-            canvasRef.current.toBlob(async (blob) => {
-                if (!blob) {
-                    console.error('Canvas is empty');
-                    return;
-                }
-                await navigator.clipboard.write([
-                    new ClipboardItem({
-                        [blob.type]: blob
-                    })
-                ]);
-                setIsCopied(true);
-                setTimeout(() => setIsCopied(false), 1500);
-            });
-        } catch (err) {
-            console.error('Failed to copy: ', err);
-            alert('复制图片失败。');
+            if (!navigator.clipboard?.write || !window.ClipboardItem) {
+                throw new Error('当前浏览器不支持复制图片。');
+            }
+
+            const blob = await canvasToBlob(canvasRef.current);
+            await navigator.clipboard.write([
+                new window.ClipboardItem({ [blob.type]: blob })
+            ]);
+            setIsCopied(true);
+            if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+            copyTimerRef.current = window.setTimeout(() => setIsCopied(false), 1500);
+        } catch (copyError) {
+            setError(copyError.message || '复制图片失败，请改用下载。');
         }
     };
-
-    if (images.length === 0) return null;
 
     const showWave = settings.showWave !== false;
 
     return (
         <div className="stitch-container">
             <div className="controls-header">
-                <div className="setting-group">
-                    <div className="toggle-group">
-                        <button
-                            className={settings.direction === 'horizontal' ? 'active' : ''}
-                            onClick={() => onSettingsChange(prev => ({ ...prev, direction: 'horizontal' }))}
-                        >
-                            横向
-                        </button>
-                        <button
-                            className={settings.direction === 'vertical' ? 'active' : ''}
-                            onClick={() => onSettingsChange(prev => ({ ...prev, direction: 'vertical' }))}
-                        >
-                            纵向
-                        </button>
-                        <button
-                            className={settings.direction === 'collage' ? 'active' : ''}
-                            onClick={() => onSettingsChange(prev => ({ ...prev, direction: 'collage' }))}
-                        >
-                            网格
-                        </button>
+                <div className="setting-group" role="group" aria-label="拼接设置">
+                    <div className="toggle-group" role="group" aria-label="拼接方向">
+                        {[
+                            ['horizontal', '横向'],
+                            ['vertical', '纵向'],
+                            ['collage', '网格']
+                        ].map(([direction, label]) => (
+                            <button
+                                key={direction}
+                                type="button"
+                                className={settings.direction === direction ? 'active' : ''}
+                                aria-pressed={settings.direction === direction}
+                                onClick={() => onSettingsChange((previous) => ({ ...previous, direction }))}
+                            >
+                                {label}
+                            </button>
+                        ))}
                     </div>
 
                     <label className="wave-control">
                         <input
                             type="checkbox"
                             checked={showWave}
-                            onChange={(e) => onSettingsChange(prev => ({
-                                ...prev,
-                                showWave: e.target.checked
+                            onChange={(event) => onSettingsChange((previous) => ({
+                                ...previous,
+                                showWave: event.target.checked
                             }))}
                         />
                         <span>分隔线</span>
@@ -295,28 +136,37 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                 </div>
             </div>
 
-            <div className="canvas-wrapper">
-                <canvas ref={canvasRef} style={{ display: 'none' }} />
-                {canvasUrl && !isGenerating ? (
-                    <img src={canvasUrl} alt="Stitched Result" className="result-image" />
-                ) : (
-                    <div className="loading">拼接中...</div>
+            <div className="canvas-wrapper" aria-live="polite">
+                <canvas ref={canvasRef} className="hidden-canvas" />
+                {isGenerating && <div className="loading">拼接中...</div>}
+                {!isGenerating && error && (
+                    <div className="canvas-error" role="alert">
+                        <p>{error}</p>
+                        <button type="button" onClick={() => setRetryKey((value) => value + 1)}>重试</button>
+                    </div>
+                )}
+                {!isGenerating && !error && canvasUrl && (
+                    <img src={canvasUrl} alt="拼接结果预览" className="result-image" />
                 )}
             </div>
 
             <div className="actions">
                 <button
+                    type="button"
                     className={`action-btn secondary ${isCopied ? 'copied' : ''}`}
                     onClick={handleCopy}
                     disabled={!canvasUrl || isGenerating}
                 >
                     {isCopied ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
+                        <>
+                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            已复制
+                        </>
                     ) : '复制'}
                 </button>
-                <button className="action-btn primary" onClick={handleDownload} disabled={!canvasUrl || isGenerating}>
+                <button type="button" className="action-btn primary" onClick={handleDownload} disabled={!canvasUrl || isGenerating}>
                     下载
                 </button>
             </div>
