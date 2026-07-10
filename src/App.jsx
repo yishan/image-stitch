@@ -5,7 +5,7 @@ import ImageUploader from './components/ImageUploader';
 import ImagePreview from './components/ImagePreview';
 import StitchCanvas from './components/StitchCanvas';
 import ThemeSwitcher from './components/ThemeSwitcher';
-import { addImageFiles, releaseImageUrls, removeImage } from './lib/imageIntake';
+import { addImageFiles, MAX_FILE_BYTES, releaseImageUrls, removeImage } from './lib/imageIntake';
 
 function App() {
   const [images, setImages] = useState([]);
@@ -36,6 +36,7 @@ function App() {
 
     const messages = [];
     if (result.rejected.nonImage > 0) messages.push(`${result.rejected.nonImage} 个非图片文件未添加`);
+    if (result.rejected.tooLarge > 0) messages.push(`${result.rejected.tooLarge} 张图片超过 ${MAX_FILE_BYTES / (1024 * 1024)} MiB，已忽略`);
     if (result.rejected.overLimit > 0) messages.push(`最多保留 6 张图片，已忽略 ${result.rejected.overLimit} 张`);
     setUploadMessage(messages.join('；'));
   }, []);

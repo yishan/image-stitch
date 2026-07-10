@@ -53,3 +53,24 @@ test('removing an image revokes only its object URL', async () => {
     assert.deepEqual(remainingImages, [{ id: 'two', url: 'blob:two' }]);
     assert.deepEqual(revokedUrls, ['blob:one']);
 });
+
+test('rejects image files larger than 10 MiB before creating an object URL', async () => {
+    const { addImageFiles } = await loadIntakeModule();
+    const createdUrls = [];
+    const files = [
+        { name: 'small.png', type: 'image/png', size: 1024 },
+        { name: 'large.png', type: 'image/png', size: 10 * 1024 * 1024 + 1 }
+    ];
+
+    const result = addImageFiles([], files, {
+        createUrl(file) {
+            createdUrls.push(file.name);
+            return `blob:${file.name}`;
+        },
+        createId: (file) => file.name
+    });
+
+    assert.deepEqual(createdUrls, ['small.png']);
+    assert.equal(result.images.length, 1);
+    assert.equal(result.rejected.tooLarge, 1);
+});

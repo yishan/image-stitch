@@ -1,4 +1,5 @@
 export const MAX_IMAGE_COUNT = 6;
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 const isImageFile = (file) => file?.type?.startsWith('image/');
 
@@ -9,13 +10,17 @@ const createDefaultId = () => (
 export const addImageFiles = (existingImages, files, options = {}) => {
     const {
         maxImages = MAX_IMAGE_COUNT,
+        maxFileBytes = MAX_FILE_BYTES,
         createUrl = (file) => URL.createObjectURL(file),
         createId = createDefaultId
     } = options;
     const sourceFiles = Array.from(files || []);
     const imageFiles = sourceFiles.filter(isImageFile);
+    const sizeValidFiles = imageFiles.filter((file) => (
+        typeof file.size !== 'number' || file.size <= maxFileBytes
+    ));
     const availableSlots = Math.max(0, maxImages - existingImages.length);
-    const acceptedFiles = imageFiles.slice(0, availableSlots);
+    const acceptedFiles = sizeValidFiles.slice(0, availableSlots);
     const addedImages = acceptedFiles.map((file) => ({
         id: createId(file),
         file,
@@ -27,7 +32,8 @@ export const addImageFiles = (existingImages, files, options = {}) => {
         addedImages,
         rejected: {
             nonImage: sourceFiles.length - imageFiles.length,
-            overLimit: Math.max(0, imageFiles.length - acceptedFiles.length)
+            tooLarge: imageFiles.length - sizeValidFiles.length,
+            overLimit: Math.max(0, sizeValidFiles.length - acceptedFiles.length)
         }
     };
 };

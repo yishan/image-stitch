@@ -6,7 +6,9 @@ export const DEFAULT_OUTPUT_LIMITS = {
 };
 
 export const DEFAULT_SOURCE_LIMITS = {
-    maxTotalPixels: 18_000_000
+    maxTotalPixels: 18_000_000,
+    maxEdge: 8192,
+    maxAspectRatio: 30
 };
 
 export const getOutputScale = (totalWidth, totalHeight, limits = DEFAULT_OUTPUT_LIMITS) => {
@@ -31,15 +33,29 @@ export const getOutputDimensions = (totalWidth, totalHeight, limits) => {
     };
 };
 
-export const getBoundedImageDimensions = (width, height, maxPixels) => {
+export const getBoundedImageDimensions = (width, height, maxPixels, maxEdge = Infinity) => {
     if (width <= 0 || height <= 0 || maxPixels <= 0) return { width: 1, height: 1 };
 
-    const scale = Math.min(1, Math.sqrt(maxPixels / (width * height)));
+    const scale = Math.min(
+        1,
+        Math.sqrt(maxPixels / (width * height)),
+        maxEdge / Math.max(width, height)
+    );
 
     return {
         width: Math.max(1, Math.floor(width * scale)),
         height: Math.max(1, Math.floor(height * scale))
     };
+};
+
+export const validateImageDimensions = (width, height, limits = DEFAULT_SOURCE_LIMITS) => {
+    const normalizedLimits = { ...DEFAULT_SOURCE_LIMITS, ...(limits || {}) };
+    const shortestEdge = Math.min(width, height);
+    const aspectRatio = shortestEdge > 0 ? Math.max(width, height) / shortestEdge : Infinity;
+
+    if (aspectRatio > normalizedLimits.maxAspectRatio) {
+        throw new Error(`图片宽高比不能超过 ${normalizedLimits.maxAspectRatio}:1。`);
+    }
 };
 
 export const canvasToBlob = (canvas, type = 'image/png') => new Promise((resolve, reject) => {
@@ -96,14 +112,21 @@ export const releaseRenderableImages = (images) => {
 };
 
 export const loadImagesForRender = async (imageRecords, limits = DEFAULT_SOURCE_LIMITS) => {
-    const maxTotalPixels = limits.maxTotalPixels ?? DEFAULT_SOURCE_LIMITS.maxTotalPixels;
+    const normalizedLimits = { ...DEFAULT_SOURCE_LIMITS, ...(limits || {}) };
+    const maxTotalPixels = normalizedLimits.maxTotalPixels;
     const maxPixelsPerImage = Math.max(1, Math.floor(maxTotalPixels / imageRecords.length));
     const renderableImages = [];
 
     try {
         for (const record of imageRecords) {
             const image = await loadImage(record.url);
-            const dimensions = getBoundedImageDimensions(image.width, image.height, maxPixelsPerImage);
+            validateImageDimensions(image.width, image.height, normalizedLimits);
+            const dimensions = getBoundedImageDimensions(
+                image.width,
+                image.height,
+                maxPixelsPerImage,
+                normalizedLimits.maxEdge
+            );
             renderableImages.push(await resizeImage(image, dimensions));
         }
 

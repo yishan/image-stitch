@@ -43,3 +43,21 @@ test('source image dimensions stay within the allocated decode budget', async ()
     assert.ok(dimensions.width < 3024);
     assert.ok(dimensions.height < 4032);
 });
+
+test('source dimensions also respect the maximum edge', async () => {
+    const { getBoundedImageDimensions } = await loadRendererModule();
+
+    const dimensions = getBoundedImageDimensions(10_000, 100, 3_000_000, 8192);
+
+    assert.ok(Math.max(dimensions.width, dimensions.height) <= 8192);
+});
+
+test('source aspect ratio validation rejects extreme strips', async () => {
+    const { validateImageDimensions } = await loadRendererModule();
+
+    assert.equal(typeof validateImageDimensions, 'function', 'validateImageDimensions should be exported');
+    assert.throws(
+        () => validateImageDimensions(10_000, 100, { maxAspectRatio: 30 }),
+        /宽高比/
+    );
+});
