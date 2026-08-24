@@ -1,18 +1,27 @@
-# 图片拼接助手
+# Image Stitch Assistant
 
-本地浏览器中的图片拼接工具：上传、粘贴或拖入最多 6 张图片，调整顺序后生成横向、纵向或网格拼图，并可复制或下载 PNG。
+> [**中文版**](./README.zh-CN.md) · [English](./README.md)
 
-## 功能与限制
+Stitch multiple images into a single long picture, right in your browser — no uploads, no installs.
 
-- 支持拖拽、文件选择和粘贴图片；可用键盘操作上传和排序。
-- 支持横向、纵向、网格三种布局，以及波浪分隔线。
-- 图片只在浏览器 Canvas 中处理，不会上传到服务器。
-- 单张图片文件不能超过 10 MiB；宽高比不能超过 30:1。
-- 为避免浏览器内存耗尽，输出会限制在最大边长 8192px 和 2,000 万像素以内；必要时会等比缩小。
+![Screenshot of the Image Stitch Assistant](about.png)
 
-## 本地开发
+## Features
 
-需要 Node.js 20.19 或更高版本，推荐使用仓库中的 Node 22 配置：
+- **Multiple input methods** — drag & drop, file picker, or clipboard paste; fully keyboard-accessible upload and reordering.
+- **Three layouts** — vertical, horizontal, and grid, with an optional wave divider between images.
+- **Theme switcher** — dark and light themes, remembered across visits.
+- **100% local & private** — images are processed only in the browser Canvas and are never uploaded to any server.
+- **Safety limits** — each file must be under 10 MiB with an aspect ratio of at most 30:1; to avoid exhausting browser memory, the output is capped at 8192 px on the longest side and 20 megapixels, downscaling proportionally when needed.
+
+## Tech Stack
+
+- React 19 + Vite 7
+- [@dnd-kit](https://dndkit.com/) for drag-to-reorder
+- Plain Canvas API for stitching and PNG encoding
+- Node.js ≥ 20.19 (see `.nvmrc`)
+
+## Local Development
 
 ```bash
 nvm use
@@ -20,28 +29,32 @@ npm ci
 npm run dev
 ```
 
-常用检查：
+Common checks:
 
 ```bash
-npm test
-npm run lint
-npm run build
-npm run preview
+npm test        # run unit tests (node --test)
+npm run lint    # run ESLint
+npm run build   # production build into dist/
+npm run preview # preview the production build
 ```
 
-## 部署
+## Deployment
 
-默认构建面向根路径站点。若部署到 GitHub Pages 等仓库子路径，请在构建时提供路径：
+The default build targets a site served from the root path. If you deploy to a repository sub-path such as GitHub Pages, provide the path at build time:
 
 ```bash
 VITE_BASE_PATH=/repository-name/ npm run build
 ```
 
-静态托管平台应将构建命令设为 `npm run build`，发布目录设为 `dist`。
+For static hosting platforms, set the build command to `npm run build` and the publish directory to `dist`.
 
-## 项目结构
+## Project Structure
 
-- `src/lib/imageIntake.js`：图片验证、数量限制和 Object URL 生命周期。
-- `src/lib/stitchLayout.js`：三种布局的几何计算与 seam 数据。
-- `src/lib/stitchRenderer.js`：Canvas 绘制、输出限额和 PNG 编码。
-- `src/components/`：上传、排序预览、设置和结果交互。
+- `src/lib/imageIntake.js` — image validation, count limits, and Object URL lifecycle.
+- `src/lib/stitchLayout.js` — geometry and seam calculations for the three layouts.
+- `src/lib/stitchRenderer.js` — Canvas drawing, output limits, and PNG encoding.
+- `src/components/` — upload, sortable preview, settings, and result interactions.
+
+## License
+
+[MIT](./LICENSE) © Yishan
