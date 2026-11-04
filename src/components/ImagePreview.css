@@ -51,6 +51,25 @@
     font-size: var(--text-sm);
 }
 
+.preview-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    color: var(--ink-soft);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+}
+
+.preview-note::before {
+    content: "";
+    flex: none;
+    width: 5px;
+    height: 5px;
+    margin-top: 7px;
+    border-radius: 50%;
+    background: var(--warn);
+}
+
 .preview-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

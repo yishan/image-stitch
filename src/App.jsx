@@ -12,10 +12,22 @@ import {
   releaseImageUrls,
   removeImage
 } from './lib/imageIntake';
+import { DEFAULT_EXPORT_SETTINGS } from './lib/stitchRenderer.js';
 
 const THEME_COLORS = {
   light: '#f6f3ed',
   dark: '#13110f'
+};
+
+const DEFAULT_SETTINGS = {
+  direction: 'vertical',
+  showWave: true,
+  backgroundColor: 'transparent',
+  gap: 0,
+  margin: 0,
+  radius: 0,
+  seamStrength: 'regular',
+  export: { ...DEFAULT_EXPORT_SETTINGS }
 };
 
 const getInitialTheme = () => document.documentElement.dataset.theme || 'light';
@@ -67,11 +79,7 @@ const PrivacyIcon = () => (
 function App() {
   const [images, setImages] = useState([]);
   const imagesRef = useRef([]);
-  const [settings, setSettings] = useState({
-    direction: 'vertical',
-    showWave: true,
-    backgroundColor: 'rgba(0, 0, 0, 0)'
-  });
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [uploadMessage, setUploadMessage] = useState('');
   const [theme, setTheme] = useState(getInitialTheme);
   const themeTimerRef = useRef(null);
@@ -191,6 +199,7 @@ function App() {
             <ImagePreview
               images={images}
               max={MAX_IMAGE_COUNT}
+              direction={settings.direction}
               onRemoveImage={handleRemoveImage}
               onDragEnd={handleDragEnd}
               onReset={handleReset}

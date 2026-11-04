@@ -11,6 +11,7 @@
 /* ---------- Toolbar ---------- */
 
 .stitch-toolbar {
+    position: relative;
     display: flex;
     align-items: center;
     gap: var(--space-4);
@@ -52,6 +53,368 @@
 .segmented button.is-active {
     background: var(--ink);
     color: var(--paper);
+}
+
+/* ---------- Settings disclosure ---------- */
+
+.advanced {
+    min-width: 0;
+}
+
+.advanced-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--line-control);
+    border-radius: var(--radius);
+    color: var(--ink-soft);
+    font-size: var(--text-base);
+    font-weight: 500;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    transition:
+        background-color var(--dur-fast) var(--ease-out),
+        color var(--dur-fast) var(--ease-out);
+}
+
+.advanced-trigger::-webkit-details-marker {
+    display: none;
+}
+
+.advanced-trigger svg {
+    width: 14px;
+    height: 14px;
+    transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.advanced[open] .advanced-trigger {
+    color: var(--ink);
+    background: var(--surface-sunken);
+}
+
+.advanced[open] .advanced-trigger svg {
+    transform: rotate(180deg);
+}
+
+.advanced-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .advanced-trigger:hover {
+        color: var(--ink);
+        background: var(--surface-sunken);
+    }
+}
+
+.advanced-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    left: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-5);
+    padding: var(--space-4);
+    border: 1px solid var(--line-control);
+    background: var(--surface);
+    box-shadow: 0 18px 40px -24px rgba(32, 28, 23, 0.45);
+}
+
+.advanced-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+.advanced-group h3 {
+    color: var(--ink-faint);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+}
+
+/* ---------- Fields ---------- */
+
+.field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "label value"
+        "input input";
+    gap: 4px var(--space-2);
+    align-items: center;
+    color: var(--ink-soft);
+}
+
+.field__label {
+    grid-area: label;
+    font-size: var(--text-sm);
+}
+
+.field__value {
+    grid-area: value;
+    color: var(--ink-faint);
+    font-size: var(--text-xs);
+    text-align: right;
+}
+
+.field input[type="range"] {
+    grid-area: input;
+    width: 100%;
+    height: 20px;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.field input[type="range"]::-webkit-slider-runnable-track {
+    height: 2px;
+    border-radius: 1px;
+    background: var(--line-control);
+}
+
+.field input[type="range"]::-webkit-slider-thumb {
+    width: 12px;
+    height: 12px;
+    margin-top: -5px;
+    border: 1px solid var(--paper);
+    border-radius: 50%;
+    background: var(--ink);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.field input[type="range"]::-moz-range-track {
+    height: 2px;
+    border-radius: 1px;
+    background: var(--line-control);
+}
+
+.field input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--paper);
+    border-radius: 50%;
+    background: var(--ink);
+}
+
+.field.is-disabled {
+    color: var(--ink-faint);
+}
+
+.field.is-disabled input {
+    cursor: not-allowed;
+}
+
+.field.is-disabled input[type="range"]::-webkit-slider-runnable-track {
+    background: var(--line);
+}
+
+.field.is-disabled input[type="range"]::-webkit-slider-thumb {
+    background: var(--line-control);
+}
+
+.field.is-disabled input[type="range"]::-moz-range-track {
+    background: var(--line);
+}
+
+.field.is-disabled input[type="range"]::-moz-range-thumb {
+    background: var(--line-control);
+}
+
+.field--select {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+        "label"
+        "input";
+}
+
+.field--select select {
+    grid-area: input;
+    width: 100%;
+    height: 32px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--line-control);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: var(--text-base);
+}
+
+.field--number {
+    grid-template-columns: minmax(0, 1fr) 84px auto;
+    grid-template-areas:
+        "label label label"
+        "input input value";
+}
+
+.field--number input {
+    grid-area: input;
+    width: 100%;
+    height: 32px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--line-control);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: var(--text-base);
+}
+
+.field-hint {
+    color: var(--ink-faint);
+    font-size: var(--text-xs);
+    line-height: 1.55;
+}
+
+.link-button {
+    align-self: flex-start;
+    color: var(--accent-text);
+    font-size: var(--text-xs);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-align: left;
+    min-height: 32px;
+}
+
+.link-button:hover {
+    text-decoration-thickness: 2px;
+}
+
+.field-hint--warn {
+    color: var(--warn);
+}
+
+.estimate {
+    color: var(--ink-soft);
+    font-size: var(--text-xs);
+}
+
+.choice {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.choice__label {
+    color: var(--ink-soft);
+    font-size: var(--text-sm);
+}
+
+.choice__options {
+    display: inline-flex;
+    align-self: flex-start;
+    border: 1px solid var(--line-control);
+    border-radius: var(--radius);
+}
+
+.choice__options button {
+    height: 26px;
+    padding: 0 10px;
+    color: var(--ink-soft);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    transition:
+        background-color var(--dur-fast) var(--ease-out),
+        color var(--dur-fast) var(--ease-out);
+}
+
+.choice__options button + button {
+    border-left: 1px solid var(--line-control);
+}
+
+.choice__options button.is-active {
+    background: var(--ink);
+    color: var(--paper);
+}
+
+.choice__options button:disabled {
+    color: var(--ink-faint);
+    cursor: not-allowed;
+}
+
+/* A selected-but-disabled option still has to be readable. */
+.choice__options button.is-active:disabled {
+    background: var(--surface-sunken);
+    color: var(--ink-soft);
+}
+
+/* ---------- Background swatches ---------- */
+
+.swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.swatch {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--line-control);
+    border-radius: var(--radius);
+    background-clip: padding-box;
+}
+
+.swatch.is-active {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.swatch--transparent {
+    background-color: #ffffff;
+    background-image:
+        linear-gradient(45deg, #d8d3cc 25%, transparent 25%),
+        linear-gradient(-45deg, #d8d3cc 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #d8d3cc 75%),
+        linear-gradient(-45deg, transparent 75%, #d8d3cc 75%);
+    background-size: 8px 8px;
+    background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+}
+
+.swatch--paper {
+    background: #f6f3ed;
+}
+
+.swatch--white {
+    background: #ffffff;
+}
+
+.swatch--ink {
+    background: #201c17;
+}
+
+.swatch--custom {
+    background: conic-gradient(from 0deg, #e05a47, #e0b25c, #8bbf6a, #63b7c9, #7f7bd1, #c76aa8, #e05a47);
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.swatch--custom input[type="color"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.swatch--custom:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 /* ---------- Seam toggle ---------- */
@@ -188,6 +551,25 @@
 
 /* ---------- Loading & error ---------- */
 
+.stage-refreshing {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    font-size: var(--text-xs);
+}
+
+.stage-refreshing .stage-progress {
+    width: 40px;
+}
+
+
 .stage-status {
     display: flex;
     flex-direction: column;
@@ -302,6 +684,31 @@
         gap: var(--space-3) var(--space-4);
     }
 
+    .advanced-trigger {
+        height: 44px;
+    }
+
+    /* On phones the settings panel is a bottom sheet: it must not stretch
+       the page past the viewport or push the preview/actions below the fold. */
+    .advanced-panel {
+        position: fixed;
+        top: auto;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 40;
+        max-height: 70dvh;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--space-4);
+        margin: 0;
+        padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+        border: 0;
+        border-top: 1px solid var(--line-control);
+        box-shadow: 0 -18px 40px -24px rgba(32, 28, 23, 0.45);
+    }
+
     .segmented button {
         height: 44px;
     }
@@ -357,5 +764,54 @@
 @media (pointer: coarse) {
     .segmented button {
         height: 44px;
+    }
+}
+
+/* Coarse pointers get larger targets for the settings controls. */
+@media (pointer: coarse) {
+    .advanced-trigger {
+        height: 44px;
+    }
+
+    .advanced-panel .field input[type="range"] {
+        height: 44px;
+    }
+
+    .advanced-panel .field input[type="range"]::-webkit-slider-runnable-track {
+        height: 3px;
+    }
+
+    .advanced-panel .field input[type="range"]::-webkit-slider-thumb {
+        width: 20px;
+        height: 20px;
+        margin-top: -8.5px;
+    }
+
+    .advanced-panel .field input[type="range"]::-moz-range-track {
+        height: 3px;
+    }
+
+    .advanced-panel .field input[type="range"]::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+    }
+
+    .choice__options button {
+        height: 44px;
+        padding: 0 14px;
+    }
+
+    .swatch {
+        width: 44px;
+        height: 44px;
+    }
+
+    .field--select select,
+    .field--number input {
+        height: 44px;
+    }
+
+    .link-button {
+        min-height: 44px;
     }
 }

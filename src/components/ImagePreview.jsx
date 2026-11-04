@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
     DndContext,
     closestCenter,
@@ -33,7 +33,7 @@ const CloseIcon = () => (
     </svg>
 );
 
-const SortableItem = ({ image, index, onRemoveImage }) => {
+const SortableItem = ({ image, index, dimensions, onDimensions, onRemoveImage }) => {
     const {
         attributes,
         listeners,
@@ -43,7 +43,6 @@ const SortableItem = ({ image, index, onRemoveImage }) => {
         transition,
         isDragging,
     } = useSortable({ id: image.id });
-    const [dimensions, setDimensions] = useState(null);
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -58,7 +57,7 @@ const SortableItem = ({ image, index, onRemoveImage }) => {
                 <img
                     src={image.url}
                     alt={`第 ${index + 1} 张图片：${imageName}`}
-                    onLoad={(event) => setDimensions({
+                    onLoad={(event) => onDimensions(image.id, {
                         width: event.currentTarget.naturalWidth,
                         height: event.currentTarget.naturalHeight
                     })}
@@ -77,7 +76,11 @@ const SortableItem = ({ image, index, onRemoveImage }) => {
                 </button>
             </div>
             <div className="thumb-meta">
-                <span className="thumb-dim mono" aria-hidden="true">
+                <span
+                    className="thumb-dim mono"
+                    aria-hidden="true"
+                    title={dimensions ? `${dimensions.width}×${dimensions.height} · 比例 ${(dimensions.width / dimensions.height).toFixed(2)}:1` : undefined}
+                >
                     {dimensions ? `${dimensions.width}×${dimensions.height}` : '—'}
                 </span>
                 <button
@@ -96,7 +99,23 @@ const SortableItem = ({ image, index, onRemoveImage }) => {
     );
 };
 
-const ImagePreview = ({ images, max = 6, onRemoveImage, onDragEnd, onReset }) => {
+const ImagePreview = ({ images, max = 6, direction = 'vertical', onRemoveImage, onDragEnd, onReset }) => {
+    const [dimensions, setDimensions] = useState({});
+    const handleDimensions = useCallback((id, size) => {
+        setDimensions((previous) => {
+            const current = previous[id];
+            if (current && current.width === size.width && current.height === size.height) return previous;
+            return { ...previous, [id]: size };
+        });
+    }, []);
+
+    const crossAxis = direction === 'vertical' ? 'width' : 'height';
+    const crossSizes = images.map((image) => dimensions[image.id]?.[crossAxis]).filter(Boolean);
+    const maxCrossSize = crossSizes.length > 0 ? Math.max(...crossSizes) : 0;
+    const smallerCount = maxCrossSize > 0
+        ? images.filter((image) => dimensions[image.id] && dimensions[image.id][crossAxis] < maxCrossSize).length
+        : 0;
+
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -132,6 +151,11 @@ const ImagePreview = ({ images, max = 6, onRemoveImage, onDragEnd, onReset }) =>
                 </button>
             </div>
             <p className="preview-hint">拖动右下角手柄调整顺序</p>
+            {smallerCount > 0 && (
+                <p className="preview-note">
+                    {smallerCount} 张图片分辨率偏小，将保持原始尺寸居中（不放大）
+                </p>
+            )}
 
             <DndContext
                 sensors={sensors}
@@ -149,6 +173,8 @@ const ImagePreview = ({ images, max = 6, onRemoveImage, onDragEnd, onReset }) =>
                                 key={image.id}
                                 image={image}
                                 index={index}
+                                dimensions={dimensions[image.id]}
+                                onDimensions={handleDimensions}
                                 onRemoveImage={onRemoveImage}
                             />
                         ))}

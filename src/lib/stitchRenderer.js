@@ -1,14 +1,95 @@
 import { createStitchPlan, getSeamStrokeMetrics, getWaveOffset } from './stitchLayout.js';
+import { createRenderCache } from './renderCache.js';
 
 export const DEFAULT_OUTPUT_LIMITS = {
     maxEdge: 8192,
     maxPixels: 20_000_000
 };
 
+export const LONG_IMAGE_LIMITS = {
+    maxEdge: 16384,
+    maxPixels: 20_000_000
+};
+
 export const DEFAULT_SOURCE_LIMITS = {
-    maxTotalPixels: 18_000_000,
+    // Enough for six iPhone screenshots at their native size (6 × 1179×2556
+    // ≈ 18.08 MP), so long-image mode can actually keep 1:1 width.
+    maxTotalPixels: 19_000_000,
     maxEdge: 8192,
     maxAspectRatio: 30
+};
+
+export const EXPORT_FORMATS = {
+    png: { id: 'png', label: 'PNG', mime: 'image/png', ext: 'png', lossy: false },
+    jpeg: { id: 'jpeg', label: 'JPEG', mime: 'image/jpeg', ext: 'jpg', lossy: true },
+    webp: { id: 'webp', label: 'WebP', mime: 'image/webp', ext: 'webp', lossy: true }
+};
+
+export const SIZE_MODE_OPTIONS = [
+    ['auto', '默认（安全上限）'],
+    ['long', '长图模式（保持宽度）'],
+    ['edge4096', '长边 4096 px'],
+    ['width1080', '宽 1080 px'],
+    ['custom', '自定义长边']
+];
+
+export const BACKGROUND_FILLS = {
+    transparent: 'rgba(0, 0, 0, 0)',
+    paper: '#f6f3ed',
+    white: '#ffffff',
+    ink: '#201c17'
+};
+
+export const BACKGROUND_OPTIONS = [
+    ['transparent', '透明'],
+    ['paper', '纸色'],
+    ['white', '白色'],
+    ['ink', '墨色']
+];
+
+export const DEFAULT_EXPORT_SETTINGS = {
+    format: 'png',
+    quality: 0.9,
+    sizeMode: 'auto',
+    customEdge: 4096
+};
+
+export const getExportFormat = (id) => EXPORT_FORMATS[id] || EXPORT_FORMATS.png;
+
+export const isTransparentColor = (color) => (
+    !color || color === 'transparent' || /^rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)$/.test(color)
+);
+
+export const resolveBackground = (value) => {
+    if (!value || value === 'transparent') return BACKGROUND_FILLS.transparent;
+    if (BACKGROUND_FILLS[value]) return BACKGROUND_FILLS[value];
+    return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value) ? value : BACKGROUND_FILLS.transparent;
+};
+
+let supportCache = null;
+
+/** Feature-detect canvas encoders once; WebP is the only one that varies. */
+export const getExportSupport = () => {
+    if (supportCache) return supportCache;
+
+    if (typeof document === 'undefined') {
+        supportCache = { png: true, jpeg: true, webp: true };
+        return supportCache;
+    }
+
+    const supports = (mime) => {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1;
+            canvas.height = 1;
+            return canvas.toDataURL(mime).startsWith(`data:${mime};`);
+        } catch {
+            return false;
+        }
+    };
+
+    supportCache = { png: true, jpeg: supports('image/jpeg'), webp: supports('image/webp') };
+    return supportCache;
 };
 
 export const getOutputScale = (totalWidth, totalHeight, limits = DEFAULT_OUTPUT_LIMITS) => {
@@ -31,6 +112,108 @@ export const getOutputDimensions = (totalWidth, totalHeight, limits) => {
         width: Math.max(1, Math.floor(totalWidth * scale)),
         height: Math.max(1, Math.floor(totalHeight * scale))
     };
+};
+
+/**
+ * Output dimensions for the export settings panel: size presets and the
+ * long-image mode (relaxed edge cap, 1:1 width when the pixel budget allows).
+ */
+export const getExportDimensions = (totalWidth, totalHeight, exportSettings = {}, options = {}) => {
+    const width = Math.max(0, Number(totalWidth) || 0);
+    const height = Math.max(0, Number(totalHeight) || 0);
+    const settings = { ...DEFAULT_EXPORT_SETTINGS, ...(exportSettings || {}) };
+    const maxPixels = Math.max(1, Number(options.maxPixels) || DEFAULT_OUTPUT_LIMITS.maxPixels);
+
+    if (width <= 0 || height <= 0) {
+        return { scale: 1, width: 1, height: 1, mode: settings.sizeMode, maxEdge: DEFAULT_OUTPUT_LIMITS.maxEdge, maxPixels, scaled: false, binding: 'none' };
+    }
+
+    let maxEdge = DEFAULT_OUTPUT_LIMITS.maxEdge;
+    let targetWidth = 0;
+
+    switch (settings.sizeMode) {
+        case 'long':
+            maxEdge = LONG_IMAGE_LIMITS.maxEdge;
+            break;
+        case 'edge4096':
+            maxEdge = 4096;
+            break;
+        case 'width1080':
+            targetWidth = 1080;
+            break;
+        case 'custom':
+            maxEdge = Math.min(16384, Math.max(512, Number(settings.customEdge) || 4096));
+            break;
+        default:
+            maxEdge = DEFAULT_OUTPUT_LIMITS.maxEdge;
+    }
+
+    const candidates = [
+        { name: 'edge', scale: maxEdge / Math.max(width, height) },
+        { name: 'pixels', scale: Math.sqrt(maxPixels / (width * height)) }
+    ];
+    if (targetWidth > 0) candidates.push({ name: 'width', scale: targetWidth / width });
+
+    const smallest = candidates.reduce((best, candidate) => (
+        candidate.scale < best.scale ? candidate : best
+    ));
+    const scale = Math.min(1, smallest.scale);
+    const binding = scale < 1 ? smallest.name : 'none';
+
+    return {
+        scale,
+        width: Math.max(1, Math.floor(width * scale + 1e-9)),
+        height: Math.max(1, Math.floor(height * scale + 1e-9)),
+        mode: settings.sizeMode,
+        maxEdge,
+        maxPixels,
+        scaled: scale < 1,
+        binding
+    };
+};
+
+/**
+ * WebKit browsers refuse canvas areas above ~16.7 MP (the canvas goes blank
+ * without throwing). Probe the target area once and fall back to a safe budget
+ * instead of shipping an 18 MP long image that silently fails on iPhone.
+ */
+export const SAFE_CANVAS_AREA = 16_000_000;
+
+const canvasAreaSupport = new Map();
+
+export const canRenderCanvasArea = (area) => {
+    if (typeof document === 'undefined' || area <= SAFE_CANVAS_AREA) return true;
+
+    const bucket = Math.ceil(area / 1_000_000) * 1_000_000;
+    if (canvasAreaSupport.has(bucket)) return canvasAreaSupport.get(bucket);
+
+    let supported = false;
+    try {
+        const width = Math.min(8192, Math.ceil(Math.sqrt(bucket / 2)));
+        const height = Math.ceil(bucket / width);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        if (context) {
+            context.fillStyle = '#ff0000';
+            context.fillRect(0, 0, width, height);
+            const [red, , , alpha] = context.getImageData(0, 0, 1, 1).data;
+            supported = red > 200 && alpha > 200;
+        }
+        canvas.width = 0;
+        canvas.height = 0;
+    } catch {
+        supported = false;
+    }
+
+    canvasAreaSupport.set(bucket, supported);
+    return supported;
+};
+
+export const getSafeMaxPixels = (targetPixels) => {
+    if (targetPixels <= SAFE_CANVAS_AREA) return DEFAULT_OUTPUT_LIMITS.maxPixels;
+    return canRenderCanvasArea(targetPixels) ? DEFAULT_OUTPUT_LIMITS.maxPixels : SAFE_CANVAS_AREA;
 };
 
 export const getBoundedImageDimensions = (width, height, maxPixels, maxEdge = Infinity) => {
@@ -58,11 +241,11 @@ export const validateImageDimensions = (width, height, limits = DEFAULT_SOURCE_L
     }
 };
 
-export const canvasToBlob = (canvas, type = 'image/png') => new Promise((resolve, reject) => {
+export const canvasToBlob = (canvas, type = 'image/png', quality) => new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
         if (blob) resolve(blob);
         else reject(new Error('图片编码失败，请降低图片尺寸后重试。'));
-    }, type);
+    }, type, quality);
 });
 
 export const loadImage = (url) => new Promise((resolve, reject) => {
@@ -111,31 +294,48 @@ export const releaseRenderableImages = (images) => {
     });
 };
 
+const renderCache = createRenderCache({
+    release: (value) => releaseRenderableImages([value])
+});
+
+// The per-image decode budget depends on the image count, so it is part of
+// the cache key: adding an image invalidates stale budgets instead of mixing them.
+const cacheKeyFor = (record, limits, maxPixelsPerImage) => (
+    `${record?.id || ''}|${record?.url || ''}|${maxPixelsPerImage}|${limits.maxEdge}`
+);
+
+const loadRenderableImage = async (record, limits, maxPixelsPerImage) => {
+    const image = await loadImage(record.url);
+    validateImageDimensions(image.width, image.height, limits);
+    const dimensions = getBoundedImageDimensions(
+        image.width,
+        image.height,
+        maxPixelsPerImage,
+        limits.maxEdge
+    );
+    return resizeImage(image, dimensions);
+};
+
 export const loadImagesForRender = async (imageRecords, limits = DEFAULT_SOURCE_LIMITS) => {
     const normalizedLimits = { ...DEFAULT_SOURCE_LIMITS, ...(limits || {}) };
-    const maxTotalPixels = normalizedLimits.maxTotalPixels;
-    const maxPixelsPerImage = Math.max(1, Math.floor(maxTotalPixels / imageRecords.length));
-    const renderableImages = [];
+    const maxPixelsPerImage = Math.max(1, Math.floor(normalizedLimits.maxTotalPixels / imageRecords.length));
 
-    try {
-        for (const record of imageRecords) {
-            const image = await loadImage(record.url);
-            validateImageDimensions(image.width, image.height, normalizedLimits);
-            const dimensions = getBoundedImageDimensions(
-                image.width,
-                image.height,
-                maxPixelsPerImage,
-                normalizedLimits.maxEdge
-            );
-            renderableImages.push(await resizeImage(image, dimensions));
-        }
-
-        return renderableImages;
-    } catch (error) {
-        releaseRenderableImages(renderableImages);
-        throw error;
-    }
+    return Promise.all(imageRecords.map((record) => renderCache.get(
+        cacheKeyFor(record, normalizedLimits, maxPixelsPerImage),
+        () => loadRenderableImage(record, normalizedLimits, maxPixelsPerImage)
+    )));
 };
+
+export const pruneRenderCache = (imageRecords, limits = DEFAULT_SOURCE_LIMITS) => {
+    const normalizedLimits = { ...DEFAULT_SOURCE_LIMITS, ...(limits || {}) };
+    const maxPixelsPerImage = Math.max(1, Math.floor(normalizedLimits.maxTotalPixels / Math.max(1, imageRecords.length)));
+    const activeKeys = new Set(imageRecords.map((record) => cacheKeyFor(record, normalizedLimits, maxPixelsPerImage)));
+    return renderCache.prune(activeKeys);
+};
+
+export const clearRenderCache = () => renderCache.clear();
+
+export const getRenderCacheStats = () => renderCache.stats;
 
 const traceWaveLine = (ctx, seam, offset = 0) => {
     const { orientation, x, y, from, to, amplitude, wavelength } = seam;
@@ -252,16 +452,46 @@ const drawRippleStitchedImages = (ctx, placements) => {
     });
 };
 
-const drawDirectStitchedImages = (ctx, placements) => {
+const traceRoundedRect = (ctx, x, y, width, height, radius) => {
+    const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.arcTo(x + width, y, x + width, y + r, r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.arcTo(x + width, y + height, x + width - r, y + height, r);
+    ctx.lineTo(x + r, y + height);
+    ctx.arcTo(x, y + height, x, y + height - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+};
+
+const drawDirectStitchedImages = (ctx, placements, radius = 0) => {
     placements.forEach((placement) => {
+        if (radius > 0) {
+            ctx.save();
+            traceRoundedRect(ctx, placement.x, placement.y, placement.width, placement.height, radius);
+            ctx.clip();
+            ctx.drawImage(placement.img, placement.x, placement.y, placement.width, placement.height);
+            ctx.restore();
+            return;
+        }
         ctx.drawImage(placement.img, placement.x, placement.y, placement.width, placement.height);
     });
 };
 
-export const renderStitch = (canvas, loadedImages, settings, limits) => {
+const clampRadius = (value) => Math.min(64, Math.max(0, Number(value) || 0));
+
+export const renderStitch = (canvas, loadedImages, settings = {}, options = {}) => {
     const plan = createStitchPlan(loadedImages, settings);
-    const { totalWidth, totalHeight, placements, seamShadows } = plan;
-    const { width, height, scale } = getOutputDimensions(totalWidth, totalHeight, limits);
+    const exportSettings = { ...DEFAULT_EXPORT_SETTINGS, ...(settings.export || {}) };
+    const format = getExportFormat(exportSettings.format);
+    const dimensions = getExportDimensions(plan.totalWidth, plan.totalHeight, exportSettings, {
+        maxPixels: options.maxPixels
+    });
+    const { width, height, scale } = dimensions;
     const ctx = canvas.getContext('2d');
 
     if (!ctx) throw new Error('当前浏览器不支持 Canvas 图片处理。');
@@ -270,16 +500,34 @@ export const renderStitch = (canvas, loadedImages, settings, limits) => {
     canvas.height = height;
     ctx.save();
     ctx.scale(scale, scale);
-    ctx.fillStyle = settings.backgroundColor;
-    ctx.fillRect(0, 0, totalWidth, totalHeight);
 
-    if (settings.showWave === false) drawDirectStitchedImages(ctx, placements);
+    const background = resolveBackground(settings.backgroundColor);
+    const flatten = format.mime === 'image/jpeg' && isTransparentColor(background);
+    const fill = flatten ? BACKGROUND_FILLS.white : background;
+
+    if (isTransparentColor(fill)) ctx.clearRect(0, 0, plan.totalWidth, plan.totalHeight);
     else {
-        drawRippleStitchedImages(ctx, placements);
-        drawRippleSeamShadows(ctx, seamShadows, totalWidth, totalHeight);
+        ctx.fillStyle = fill;
+        ctx.fillRect(0, 0, plan.totalWidth, plan.totalHeight);
+    }
+
+    if (settings.showWave === false) {
+        const radius = clampRadius(settings.radius);
+        drawDirectStitchedImages(ctx, plan.placements, radius);
+    } else {
+        drawRippleStitchedImages(ctx, plan.placements);
+        drawRippleSeamShadows(ctx, plan.seamShadows, plan.totalWidth, plan.totalHeight);
     }
 
     ctx.restore();
 
-    return { ...plan, width, height, scale };
+    return {
+        ...plan,
+        ...dimensions,
+        format,
+        exportSettings,
+        background,
+        fill,
+        flattened: flatten
+    };
 };
