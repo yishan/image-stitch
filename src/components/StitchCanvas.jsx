@@ -1,12 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { SEAM_STRENGTHS, createStitchPlan } from '../lib/stitchLayout.js';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createStitchPlan } from '../lib/stitchLayout.js';
 import {
-    BACKGROUND_OPTIONS,
     DEFAULT_EXPORT_SETTINGS,
     DEFAULT_OUTPUT_LIMITS,
-    EXPORT_FORMATS,
     SAFE_CANVAS_AREA,
-    SIZE_MODE_OPTIONS,
     canvasToBlob,
     clearRenderCache,
     getExportDimensions,
@@ -17,6 +14,10 @@ import {
     pruneRenderCache,
     renderStitch
 } from '../lib/stitchRenderer.js';
+import { isEditableTarget } from '../lib/keyboard.js';
+import { ChevronIcon, CheckIcon, DownloadIcon } from './ui-icons.jsx';
+import StitchSettings from './StitchSettings.jsx';
+import StitchStage from './StitchStage.jsx';
 import './StitchCanvas.css';
 
 const DIRECTION_LABELS = [
@@ -37,79 +38,13 @@ const downloadStamp = () => {
     return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 };
 
-const isCustomHex = (value) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value || '');
-
-const CheckIcon = () => (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
-        <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-);
-
-const DownloadIcon = () => (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
-        <path d="M8 2.5v8m0 0L4.75 7.25M8 10.5l3.25-3.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M2.5 12.5h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-);
-
-const AlertIcon = () => (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
-        <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.4" />
-        <path d="M10 6v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx="10" cy="14" r="0.9" fill="currentColor" />
-    </svg>
-);
-
-const ChevronIcon = () => (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
-        <path d="M4.5 6.5L8 10l3.5-3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-);
-
-const RangeField = ({ label, value, min, max, step, suffix = 'px', disabled = false, onChange }) => (
-    <label className={`field${disabled ? ' is-disabled' : ''}`}>
-        <span className="field__label">{label}</span>
-        <input
-            type="range"
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            disabled={disabled}
-            onChange={(event) => onChange(Number(event.target.value))}
-        />
-        <output className="field__value mono">{value}{suffix}</output>
-    </label>
-);
-
-const ChoiceGroup = ({ label, options, value, disabled = false, onChange }) => (
-    <div className="choice" role="group" aria-label={label}>
-        <span className="choice__label">{label}</span>
-        <div className="choice__options">
-            {options.map(([id, text, optionDisabled]) => (
-                <button
-                    key={id}
-                    type="button"
-                    className={value === id ? 'is-active' : ''}
-                    aria-pressed={value === id}
-                    disabled={disabled || optionDisabled}
-                    onClick={() => onChange(id)}
-                >
-                    {text}
-                </button>
-            ))}
-        </div>
-    </div>
-);
-
-const StitchCanvas = ({ images, settings, onSettingsChange }) => {
+const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, sessionStatus, onClearSession }) => {
     const canvasRef = useRef(null);
     const generationRef = useRef(0);
     const outputUrlRef = useRef(null);
     const copyTimerRef = useRef(null);
     const advancedRef = useRef(null);
     const [sourceImages, setSourceImages] = useState(null);
-    const [customEdgeDraft, setCustomEdgeDraft] = useState(() => String(settings.export?.customEdge ?? 4096));
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [canvasUrl, setCanvasUrl] = useState(null);
@@ -123,8 +58,8 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
     const format = getExportFormat(exportSettings.format);
     const support = getExportSupport();
     const showWave = settings.showWave !== false;
+    const previewMode = settings.previewMode === 'width' ? 'width' : 'fit';
     const qualityValue = Math.round((exportSettings.quality ?? DEFAULT_EXPORT_SETTINGS.quality) * 100);
-    const customColor = isCustomHex(settings.backgroundColor) ? settings.backgroundColor : '#ffffff';
     const isCustomized = (
         settings.gap > 0
         || settings.margin > 0
@@ -134,6 +69,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
         || exportSettings.format !== 'png'
         || exportSettings.sizeMode !== 'auto'
         || exportSettings.quality !== DEFAULT_EXPORT_SETTINGS.quality
+        || previewMode !== 'fit'
     );
 
     useEffect(() => {
@@ -266,10 +202,6 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
         };
     }, [images, settings, retryKey]);
 
-    useEffect(() => {
-        setCustomEdgeDraft(String(exportSettings.customEdge ?? 4096));
-    }, [exportSettings.customEdge, exportSettings.sizeMode]);
-
     const estimate = useMemo(() => {
         if (!sourceImages || sourceImages.length === 0) return null;
         const plan = createStitchPlan(sourceImages, settings);
@@ -300,19 +232,28 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
         };
     }, [settings, sourceImages]);
 
-    const updateSettings = (patch) => onSettingsChange((previous) => ({ ...previous, ...patch }));
-    const updateExport = (patch) => onSettingsChange((previous) => ({
-        ...previous,
-        export: { ...DEFAULT_EXPORT_SETTINGS, ...previous.export, ...patch }
-    }));
+    const updateSettings = useCallback((patch) => {
+        onSettingsChange((previous) => ({ ...previous, ...patch }));
+    }, [onSettingsChange]);
 
-    const handleDownload = () => {
+    const updateExport = useCallback((patch) => {
+        onSettingsChange((previous) => ({
+            ...previous,
+            export: { ...DEFAULT_EXPORT_SETTINGS, ...previous.export, ...patch }
+        }));
+    }, [onSettingsChange]);
+
+    const resetSettings = useCallback(() => {
+        onResetSettings();
+    }, [onResetSettings]);
+
+    const handleDownload = useCallback(() => {
         if (!canvasUrl || !output) return;
         const link = document.createElement('a');
         link.download = `stitch-${settings.direction}-${downloadStamp()}.${output.format.ext}`;
         link.href = canvasUrl;
         link.click();
-    };
+    }, [canvasUrl, output, settings.direction]);
 
     const handleCopy = async () => {
         if (!canvasRef.current) return;
@@ -339,6 +280,18 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
     const showPreview = Boolean(canvasUrl) && !error;
     const hasResult = showPreview && !isGenerating;
     const outputFormat = output?.format || format;
+
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            const saveShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's';
+            if (!saveShortcut || isEditableTarget(event.target)) return;
+            event.preventDefault();
+            if (hasResult) handleDownload();
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [hasResult, handleDownload]);
 
     const deviceCapped = output?.maxPixels < DEFAULT_OUTPUT_LIMITS.maxPixels;
     const scaleNote = (() => {
@@ -391,6 +344,25 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                     <span className="seam-label">波浪接缝</span>
                 </label>
 
+                <div className="segmented preview-modes" role="group" aria-label="预览方式">
+                    <button
+                        type="button"
+                        className={previewMode === 'fit' ? 'is-active' : ''}
+                        aria-pressed={previewMode === 'fit'}
+                        onClick={() => updateSettings({ previewMode: 'fit' })}
+                    >
+                        适应整图
+                    </button>
+                    <button
+                        type="button"
+                        className={previewMode === 'width' ? 'is-active' : ''}
+                        aria-pressed={previewMode === 'width'}
+                        onClick={() => updateSettings({ previewMode: 'width' })}
+                    >
+                        适应宽度
+                    </button>
+                </div>
+
                 <details
                     className="advanced"
                     ref={advancedRef}
@@ -403,197 +375,31 @@ const StitchCanvas = ({ images, settings, onSettingsChange }) => {
                         <ChevronIcon />
                     </summary>
 
-                    <div className="advanced-panel">
-                        <div className="advanced-group">
-                            <h3>画布</h3>
-                            <RangeField label="外边距" value={settings.margin || 0} min={0} max={64} step={4} onChange={(margin) => updateSettings({ margin })} />
-                            <RangeField label="图片间距" value={settings.gap || 0} min={0} max={64} step={4} onChange={(gap) => updateSettings({ gap })} />
-                            <RangeField
-                                label="圆角"
-                                value={settings.radius || 0}
-                                min={0}
-                                max={32}
-                                step={2}
-                                disabled={showWave}
-                                onChange={(radius) => updateSettings({ radius })}
-                            />
-                            {showWave && <p className="field-hint">波浪接缝开启时，圆角暂不生效。</p>}
-
-                            <div className="choice" role="group" aria-label="背景颜色">
-                                <span className="choice__label">背景</span>
-                                <div className="swatches">
-                                    {BACKGROUND_OPTIONS.map(([id, label]) => (
-                                        <button
-                                            key={id}
-                                            type="button"
-                                            className={`swatch swatch--${id}${settings.backgroundColor === id ? ' is-active' : ''}`}
-                                            aria-pressed={settings.backgroundColor === id}
-                                            onClick={() => updateSettings({ backgroundColor: id })}
-                                            title={label}
-                                        >
-                                            <span className="visually-hidden">{label}</span>
-                                        </button>
-                                    ))}
-                                    <label className={`swatch swatch--custom${isCustomHex(settings.backgroundColor) ? ' is-active' : ''}`} title="自定义背景色">
-                                        <input
-                                            type="color"
-                                            value={customColor}
-                                            onChange={(event) => updateSettings({ backgroundColor: event.target.value })}
-                                        />
-                                        <span className="visually-hidden">自定义背景色</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="advanced-group">
-                            <h3>接缝</h3>
-                            <ChoiceGroup
-                                label="波浪强度"
-                                options={SEAM_STRENGTHS}
-                                value={settings.seamStrength || 'regular'}
-                                disabled={!showWave}
-                                onChange={(seamStrength) => updateSettings({ seamStrength })}
-                            />
-                            <p className="field-hint">作用于相邻图片之间的波浪线；关闭接缝后使用直边。</p>
-                        </div>
-
-                        <div className="advanced-group">
-                            <h3>导出</h3>
-                            <ChoiceGroup
-                                label="格式"
-                                options={EXPORT_FORMATS ? Object.values(EXPORT_FORMATS).map((item) => [item.id, item.label, !support[item.id]]) : []}
-                                value={exportSettings.format}
-                                onChange={(value) => updateExport({ format: value })}
-                            />
-                            {format.lossy ? (
-                                <RangeField
-                                    label="质量"
-                                    value={qualityValue}
-                                    min={30}
-                                    max={100}
-                                    step={5}
-                                    suffix="%"
-                                    onChange={(quality) => updateExport({ quality: quality / 100 })}
-                                />
-                            ) : (
-                                <p className="field-hint">PNG 为无损格式，文件通常更大。</p>
-                            )}
-
-                            <label className="field field--select">
-                                <span className="field__label">尺寸</span>
-                                <select
-                                    value={exportSettings.sizeMode}
-                                    onChange={(event) => updateExport({ sizeMode: event.target.value })}
-                                >
-                                    {SIZE_MODE_OPTIONS.map(([id, label]) => (
-                                        <option key={id} value={id}>{label}</option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            {exportSettings.sizeMode === 'custom' && (
-                                <label className="field field--number">
-                                    <span className="field__label">最长边</span>
-                                    <input
-                                        type="number"
-                                        inputMode="numeric"
-                                        min="512"
-                                        max="16384"
-                                        step="64"
-                                        value={customEdgeDraft}
-                                        onChange={(event) => {
-                                            const raw = event.target.value;
-                                            setCustomEdgeDraft(raw);
-                                            const next = Number(raw);
-                                            if (raw !== '' && Number.isFinite(next) && next >= 512 && next <= 16384) {
-                                                updateExport({ customEdge: Math.round(next) });
-                                            }
-                                        }}
-                                        onBlur={() => {
-                                            const next = Number(customEdgeDraft);
-                                            const clamped = Number.isFinite(next) && customEdgeDraft !== ''
-                                                ? Math.min(16384, Math.max(512, Math.round(next)))
-                                                : exportSettings.customEdge;
-                                            updateExport({ customEdge: clamped });
-                                            setCustomEdgeDraft(String(clamped));
-                                        }}
-                                    />
-                                    <span className="field__value mono">px</span>
-                                </label>
-                            )}
-
-                            {estimate && (
-                                <p className="estimate mono">
-                                    预计 {estimate.width} × {estimate.height} px · {estimate.megapixels.toFixed(1)} MP
-                                </p>
-                            )}
-                            {estimate && estimate.megapixels > 12 && (
-                                <p className="field-hint field-hint--warn">大画布：导出可能需要几秒，移动端请留意内存。</p>
-                            )}
-                            {estimate && estimate.scaled && (
-                                <p className="field-hint">当前尺寸会被安全上限等比缩小。</p>
-                            )}
-                            {estimate?.deviceCapped && (
-                                <p className="field-hint field-hint--warn">当前浏览器的画布上限较低，大图会自动缩放到约 16 MP。</p>
-                            )}
-                            {estimate?.longHelps && exportSettings.sizeMode === 'auto' && (
-                                <button
-                                    type="button"
-                                    className="link-button"
-                                    onClick={() => updateExport({ sizeMode: 'long' })}
-                                >
-                                    改用长图模式（保持 {estimate.longWidth} px 宽）
-                                </button>
-                            )}
-                            {exportSettings.format === 'jpeg' && settings.backgroundColor === 'transparent' && (
-                                <p className="field-hint">JPEG 不支持透明，将改用白色铺底。</p>
-                            )}
-                        </div>
-                    </div>
+                    <StitchSettings
+                        settings={settings}
+                        exportSettings={exportSettings}
+                        format={format}
+                        support={support}
+                        qualityValue={qualityValue}
+                        estimate={estimate}
+                        sessionStatus={sessionStatus}
+                        onSettingChange={updateSettings}
+                        onExportChange={updateExport}
+                        onResetSettings={resetSettings}
+                        onClearSession={onClearSession}
+                    />
                 </details>
             </div>
 
-            <div className="stage" aria-busy={isGenerating}>
-                <canvas ref={canvasRef} className="hidden-canvas" />
-                <div className="stage-ticks" aria-hidden="true">
-                    <span /><span /><span /><span />
-                </div>
-
-                {isGenerating && !canvasUrl && (
-                    <div className="stage-status">
-                        <span className="stage-progress" aria-hidden="true"><span /></span>
-                        <p>正在拼接…</p>
-                    </div>
-                )}
-
-                {isGenerating && canvasUrl && (
-                    <div className="stage-refreshing" role="status">
-                        <span className="stage-progress" aria-hidden="true"><span /></span>
-                        <span>更新中…</span>
-                    </div>
-                )}
-
-                {!isGenerating && error && (
-                    <div className="stage-error" role="alert">
-                        <AlertIcon />
-                        <p>{error}</p>
-                        <button type="button" className="btn btn--secondary btn--sm" onClick={() => setRetryKey((value) => value + 1)}>
-                            重试
-                        </button>
-                    </div>
-                )}
-
-                {showPreview && (
-                    <img
-                        src={canvasUrl}
-                        alt={output ? `拼接结果预览，${output.width} × ${output.height} 像素` : '拼接结果预览'}
-                        className="result-image"
-                        width={output.width}
-                        height={output.height}
-                    />
-                )}
-            </div>
+            <StitchStage
+                canvasRef={canvasRef}
+                isGenerating={isGenerating}
+                error={error}
+                canvasUrl={canvasUrl}
+                output={output}
+                previewMode={previewMode}
+                onRetry={() => setRetryKey((value) => value + 1)}
+            />
 
             <div className="stitch-actions">
                 <p className="output-meta">

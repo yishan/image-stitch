@@ -9,25 +9,29 @@ import {
   MAX_IMAGE_COUNT,
   MAX_FILE_BYTES,
   addImageFiles,
-  releaseImageUrls,
   removeImage
 } from './lib/imageIntake';
-import { DEFAULT_EXPORT_SETTINGS } from './lib/stitchRenderer.js';
+import {
+  createHistory,
+  historySnapshots,
+  pushHistory,
+  redoHistory,
+  resetHistory,
+  undoHistory
+} from './lib/history';
+import { DEFAULT_SETTINGS } from './lib/stitchSettings';
+import { isEditableTarget } from './lib/keyboard';
+import {
+  clearSession,
+  isSessionStorageAvailable,
+  loadSession,
+  saveSessionImages,
+  saveSessionSettings
+} from './lib/sessionStore';
 
 const THEME_COLORS = {
   light: '#f6f3ed',
   dark: '#13110f'
-};
-
-const DEFAULT_SETTINGS = {
-  direction: 'vertical',
-  showWave: true,
-  backgroundColor: 'transparent',
-  gap: 0,
-  margin: 0,
-  radius: 0,
-  seamStrength: 'regular',
-  export: { ...DEFAULT_EXPORT_SETTINGS }
 };
 
 const getInitialTheme = () => document.documentElement.dataset.theme || 'light';
@@ -76,13 +80,44 @@ const PrivacyIcon = () => (
   </svg>
 );
 
+const restoreImageFile = (record) => {
+  const file = new File([record.blob], record.name, {
+    type: record.type,
+    lastModified: record.lastModified
+  });
+  return {
+    id: record.id,
+    file,
+    url: URL.createObjectURL(file)
+  };
+};
+
 function App() {
-  const [images, setImages] = useState([]);
-  const imagesRef = useRef([]);
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [history, setHistory] = useState(() => createHistory({ images: [], settings: DEFAULT_SETTINGS }));
+  const { images, settings } = history.present;
+  const imagesRef = useRef(images);
+  const settingsRef = useRef(settings);
+  const urlsRef = useRef(new Set());
+  const themeTimerRef = useRef(null);
+  const suppressSaveRef = useRef(false);
+  const sessionEpochRef = useRef(0);
+  const savedImagesSignatureRef = useRef(null);
+  const savedSettingsSignatureRef = useRef(null);
   const [uploadMessage, setUploadMessage] = useState('');
   const [theme, setTheme] = useState(getInitialTheme);
-  const themeTimerRef = useRef(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [sessionStatus, setSessionStatus] = useState(() => (
+    isSessionStorageAvailable() ? 'loading' : 'unavailable'
+  ));
+  const [sessionReady, setSessionReady] = useState(false);
+
+  useEffect(() => {
+    imagesRef.current = images;
+  }, [images]);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -99,10 +134,117 @@ function App() {
     return () => query.removeEventListener('change', handleChange);
   }, []);
 
+  // Restore the local session once (images + settings).
+  useEffect(() => {
+    let cancelled = false;
+    const restoredUrls = [];
+
+    (async () => {
+      const session = await loadSession();
+      if (cancelled) {
+        restoredUrls.forEach((url) => URL.revokeObjectURL(url));
+        return;
+      }
+
+      if (!session) {
+        setSessionStatus(isSessionStorageAvailable() ? 'idle' : 'unavailable');
+        setSessionReady(true);
+        return;
+      }
+
+      const restoredImages = (session.images || []).map((record) => {
+        const restored = restoreImageFile(record);
+        restoredUrls.push(restored.url);
+        urlsRef.current.add(restored.url);
+        return restored;
+      });
+      const restoredSettings = session.settings || DEFAULT_SETTINGS;
+
+      imagesRef.current = restoredImages;
+      settingsRef.current = restoredSettings;
+      savedImagesSignatureRef.current = restoredImages.map((image) => image.id).join('|');
+      savedSettingsSignatureRef.current = JSON.stringify(restoredSettings);
+      setHistory(resetHistory({ images: restoredImages, settings: restoredSettings }));
+      setSessionStatus('saved');
+      setSessionReady(true);
+    })().catch(() => {
+      if (!cancelled) {
+        setSessionStatus(isSessionStorageAvailable() ? 'idle' : 'unavailable');
+        setSessionReady(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Revoke Object URLs that no history snapshot can reach anymore.
+  useEffect(() => {
+    const referenced = new Set();
+    historySnapshots(history).forEach((snapshot) => {
+      snapshot.images.forEach((image) => referenced.add(image.url));
+    });
+    for (const url of urlsRef.current) {
+      if (!referenced.has(url)) {
+        URL.revokeObjectURL(url);
+        urlsRef.current.delete(url);
+      }
+    }
+  }, [history]);
+
   useEffect(() => () => {
-    releaseImageUrls(imagesRef.current);
+    urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    urlsRef.current.clear();
     if (themeTimerRef.current) window.clearTimeout(themeTimerRef.current);
   }, []);
+
+  // Persist images and settings separately, each with its own debounce.
+  useEffect(() => {
+    if (!sessionReady || suppressSaveRef.current) return undefined;
+    const signature = images.map((image) => image.id).join('|');
+    if (signature === savedImagesSignatureRef.current) return undefined;
+    const epoch = sessionEpochRef.current;
+
+    const timer = window.setTimeout(async () => {
+      if (suppressSaveRef.current || epoch !== sessionEpochRef.current) return;
+      setSessionStatus((previous) => (previous === 'unavailable' ? previous : 'saving'));
+      const saved = await saveSessionImages(images);
+      if (suppressSaveRef.current || epoch !== sessionEpochRef.current) {
+        await clearSession();
+        return;
+      }
+      if (saved) savedImagesSignatureRef.current = signature;
+      setSessionStatus((previous) => {
+        if (previous === 'unavailable') return previous;
+        return saved ? 'saved' : 'error';
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [images, sessionReady]);
+
+  useEffect(() => {
+    if (!sessionReady || suppressSaveRef.current) return undefined;
+    const signature = JSON.stringify(settings);
+    if (signature === savedSettingsSignatureRef.current) return undefined;
+    const epoch = sessionEpochRef.current;
+
+    const timer = window.setTimeout(async () => {
+      if (suppressSaveRef.current || epoch !== sessionEpochRef.current) return;
+      setSessionStatus((previous) => (previous === 'unavailable' ? previous : 'saving'));
+      const saved = await saveSessionSettings(settings);
+      if (suppressSaveRef.current || epoch !== sessionEpochRef.current) {
+        await clearSession();
+        return;
+      }
+      if (saved) savedSettingsSignatureRef.current = signature;
+      setSessionStatus((previous) => {
+        if (previous === 'unavailable') return previous;
+        return saved ? 'saved' : 'error';
+      });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [settings, sessionReady]);
 
   const toggleTheme = () => {
     document.documentElement.classList.add('theme-switching');
@@ -114,31 +256,46 @@ function App() {
     }, 200);
   };
 
+  const markSaving = useCallback(() => {
+    if (suppressSaveRef.current) return;
+    setSessionStatus((previous) => (previous === 'unavailable' ? previous : 'saving'));
+  }, []);
+
+  const commit = useCallback((next, options) => {
+    imagesRef.current = next.images;
+    settingsRef.current = next.settings;
+    markSaving();
+    setHistory((previous) => pushHistory(previous, next, options));
+  }, [markSaving]);
+
   const handleImagesUpload = useCallback((files) => {
     const result = addImageFiles(imagesRef.current, files);
-    imagesRef.current = result.images;
-    setImages(result.images);
+    result.addedImages.forEach((image) => urlsRef.current.add(image.url));
+
+    if (result.addedImages.length > 0) {
+      commit({ images: result.images, settings: settingsRef.current });
+    }
 
     const messages = [];
     if (result.rejected.nonImage > 0) messages.push(`${result.rejected.nonImage} 个非图片文件未添加`);
     if (result.rejected.tooLarge > 0) messages.push(`${result.rejected.tooLarge} 张图片超过 ${MAX_FILE_BYTES / (1024 * 1024)} MiB，已忽略`);
     if (result.rejected.overLimit > 0) messages.push(`最多保留 ${MAX_IMAGE_COUNT} 张图片，已忽略 ${result.rejected.overLimit} 张`);
     setUploadMessage(messages.join('；'));
-  }, []);
+  }, [commit]);
 
   const handleRemoveImage = useCallback((id) => {
-    const nextImages = removeImage(imagesRef.current, id);
-    imagesRef.current = nextImages;
-    setImages(nextImages);
+    const nextImages = removeImage(imagesRef.current, id, () => {});
+    if (nextImages.length === imagesRef.current.length) return;
+    commit({ images: nextImages, settings: settingsRef.current });
+    setSelectedId((current) => (current === id ? null : current));
     setUploadMessage('');
-  }, []);
+  }, [commit]);
 
   const handleReset = useCallback(() => {
-    releaseImageUrls(imagesRef.current);
-    imagesRef.current = [];
-    setImages([]);
+    commit({ images: [], settings: settingsRef.current });
+    setSelectedId(null);
     setUploadMessage('');
-  }, []);
+  }, [commit]);
 
   const handleDragEnd = useCallback(({ active, over }) => {
     if (!over || active.id === over.id) return;
@@ -148,9 +305,70 @@ function App() {
     if (oldIndex < 0 || newIndex < 0) return;
 
     const nextImages = arrayMove(imagesRef.current, oldIndex, newIndex);
-    imagesRef.current = nextImages;
-    setImages(nextImages);
+    commit({ images: nextImages, settings: settingsRef.current });
+  }, [commit]);
+
+  const handleSettingsChange = useCallback((updater) => {
+    markSaving();
+    setHistory((previous) => {
+      const nextSettings = updater(previous.present.settings);
+      return pushHistory(
+        previous,
+        { images: previous.present.images, settings: nextSettings },
+        { coalesceKey: 'settings' }
+      );
+    });
+  }, [markSaving]);
+
+  const handleResetSettings = useCallback(() => {
+    setHistory((previous) => pushHistory(previous, {
+      images: previous.present.images,
+      settings: DEFAULT_SETTINGS
+    }));
   }, []);
+
+  const handleClearSession = useCallback(async () => {
+    suppressSaveRef.current = true;
+    sessionEpochRef.current += 1;
+    savedImagesSignatureRef.current = null;
+    savedSettingsSignatureRef.current = null;
+    const cleared = await clearSession();
+    urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    urlsRef.current.clear();
+    imagesRef.current = [];
+    settingsRef.current = DEFAULT_SETTINGS;
+    setHistory(resetHistory({ images: [], settings: DEFAULT_SETTINGS }));
+    setSelectedId(null);
+    setUploadMessage('');
+    setSessionStatus(cleared ? 'cleared' : 'error');
+    window.setTimeout(() => {
+      suppressSaveRef.current = false;
+    }, 1200);
+  }, []);
+
+  const activeSelectedId = images.some((image) => image.id === selectedId) ? selectedId : null;
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (isEditableTarget(event.target)) return;
+      const meta = event.metaKey || event.ctrlKey;
+
+      if (meta && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        markSaving();
+        setHistory((previous) => (event.shiftKey ? redoHistory(previous) : undoHistory(previous)));
+        return;
+      }
+
+      if (!meta && (event.key === 'Delete' || event.key === 'Backspace') && activeSelectedId) {
+        event.preventDefault();
+        handleRemoveImage(activeSelectedId);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeSelectedId, handleRemoveImage, markSaving]);
 
   useEffect(() => {
     const handlePaste = (event) => {
@@ -200,6 +418,8 @@ function App() {
               images={images}
               max={MAX_IMAGE_COUNT}
               direction={settings.direction}
+              selectedId={activeSelectedId}
+              onSelectImage={setSelectedId}
               onRemoveImage={handleRemoveImage}
               onDragEnd={handleDragEnd}
               onReset={handleReset}
@@ -210,7 +430,14 @@ function App() {
 
       <main className="stage-column" aria-label="拼接结果">
         {images.length > 0 ? (
-          <StitchCanvas images={images} settings={settings} onSettingsChange={setSettings} />
+          <StitchCanvas
+            images={images}
+            settings={settings}
+            onSettingsChange={handleSettingsChange}
+            onResetSettings={handleResetSettings}
+            sessionStatus={sessionStatus}
+            onClearSession={handleClearSession}
+          />
         ) : (
           <EmptyStage />
         )}
@@ -225,6 +452,14 @@ function App() {
           Made by{' '}
           <a href="https://yishan.li" target="_blank" rel="noopener noreferrer">Yishan</a>
           <span aria-hidden="true"> · </span>MIT
+          {images.length === 0 && sessionStatus === 'saved' && (
+            <>
+              <span aria-hidden="true"> · </span>
+              <button type="button" className="footer-clear" onClick={handleClearSession}>
+                清除本机数据
+              </button>
+            </>
+          )}
         </p>
       </footer>
     </div>

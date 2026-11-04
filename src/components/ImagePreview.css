@@ -84,6 +84,12 @@
     flex-direction: column;
     gap: 6px;
     min-width: 0;
+    outline-offset: 4px;
+}
+
+.thumb.is-selected .thumb-frame {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .thumb-frame {

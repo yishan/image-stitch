@@ -815,3 +815,105 @@
         min-height: 44px;
     }
 }
+
+/* ---------- Preview fit modes ---------- */
+
+.segmented.preview-modes button {
+    height: 30px;
+    padding: 0 10px;
+    font-size: var(--text-sm);
+}
+
+.stage[data-preview-mode="width"] {
+    display: block;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0;
+}
+
+.stage[data-preview-mode="width"] .result-image {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    height: auto;
+    margin: 0 auto;
+}
+
+.stage[data-preview-mode="width"] .stage-ticks {
+    display: none;
+}
+
+/* ---------- Settings footer ---------- */
+
+.advanced-footer {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3) var(--space-5);
+    align-items: flex-start;
+    justify-content: space-between;
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--line-soft);
+}
+
+.advanced-footer__session {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 200px;
+}
+
+.advanced-footer__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    justify-content: flex-end;
+    max-width: 560px;
+}
+
+.session-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink-soft);
+    font-size: var(--text-xs);
+}
+
+.session-status::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+.link-button--danger {
+    color: var(--danger);
+}
+
+@media (max-width: 900px) {
+    .segmented.preview-modes button {
+        height: 40px;
+        padding: 0 10px;
+        font-size: var(--text-sm);
+    }
+
+    .advanced-footer {
+        flex-direction: column;
+        gap: var(--space-3);
+    }
+
+    .advanced-footer__actions {
+        justify-content: flex-start;
+        max-width: none;
+    }
+}
+
+@media (pointer: coarse) {
+    .segmented.preview-modes button {
+        height: 44px;
+    }
+}

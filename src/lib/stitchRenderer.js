@@ -294,26 +294,54 @@ export const releaseRenderableImages = (images) => {
     });
 };
 
+const shrinkRenderableImage = async (image, target) => {
+    if (typeof globalThis.createImageBitmap === 'function') {
+        try {
+            return await globalThis.createImageBitmap(image, {
+                resizeWidth: target.width,
+                resizeHeight: target.height,
+                resizeQuality: 'high'
+            });
+        } catch {
+            // Fall through to the Canvas implementation.
+        }
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = target.width;
+    canvas.height = target.height;
+    const context = canvas.getContext('2d');
+    if (!context) return image;
+    context.drawImage(image, 0, 0, target.width, target.height);
+    return canvas;
+};
+
 const renderCache = createRenderCache({
-    release: (value) => releaseRenderableImages([value])
+    release: (image) => releaseRenderableImages([image]),
+    bounds: (sourceWidth, sourceHeight, budget) => getBoundedImageDimensions(
+        sourceWidth,
+        sourceHeight,
+        budget,
+        DEFAULT_SOURCE_LIMITS.maxEdge
+    ),
+    resize: shrinkRenderableImage
 });
 
-// The per-image decode budget depends on the image count, so it is part of
-// the cache key: adding an image invalidates stale budgets instead of mixing them.
-const cacheKeyFor = (record, limits, maxPixelsPerImage) => (
-    `${record?.id || ''}|${record?.url || ''}|${maxPixelsPerImage}|${limits.maxEdge}`
-);
+const cacheKeyFor = (record) => `${record?.id || ''}|${record?.url || ''}`;
 
-const loadRenderableImage = async (record, limits, maxPixelsPerImage) => {
+const decodeRenderableImage = async (record, limits, maxPixelsPerImage) => {
     const image = await loadImage(record.url);
-    validateImageDimensions(image.width, image.height, limits);
+    const sourceWidth = image.width;
+    const sourceHeight = image.height;
+    validateImageDimensions(sourceWidth, sourceHeight, limits);
     const dimensions = getBoundedImageDimensions(
-        image.width,
-        image.height,
+        sourceWidth,
+        sourceHeight,
         maxPixelsPerImage,
         limits.maxEdge
     );
-    return resizeImage(image, dimensions);
+    const renderable = await resizeImage(image, dimensions);
+    return { image: renderable, sourceWidth, sourceHeight };
 };
 
 export const loadImagesForRender = async (imageRecords, limits = DEFAULT_SOURCE_LIMITS) => {
@@ -321,15 +349,14 @@ export const loadImagesForRender = async (imageRecords, limits = DEFAULT_SOURCE_
     const maxPixelsPerImage = Math.max(1, Math.floor(normalizedLimits.maxTotalPixels / imageRecords.length));
 
     return Promise.all(imageRecords.map((record) => renderCache.get(
-        cacheKeyFor(record, normalizedLimits, maxPixelsPerImage),
-        () => loadRenderableImage(record, normalizedLimits, maxPixelsPerImage)
+        cacheKeyFor(record),
+        maxPixelsPerImage,
+        (budget) => decodeRenderableImage(record, normalizedLimits, budget)
     )));
 };
 
-export const pruneRenderCache = (imageRecords, limits = DEFAULT_SOURCE_LIMITS) => {
-    const normalizedLimits = { ...DEFAULT_SOURCE_LIMITS, ...(limits || {}) };
-    const maxPixelsPerImage = Math.max(1, Math.floor(normalizedLimits.maxTotalPixels / Math.max(1, imageRecords.length)));
-    const activeKeys = new Set(imageRecords.map((record) => cacheKeyFor(record, normalizedLimits, maxPixelsPerImage)));
+export const pruneRenderCache = (imageRecords) => {
+    const activeKeys = new Set(imageRecords.map((record) => cacheKeyFor(record)));
     return renderCache.prune(activeKeys);
 };
 
@@ -337,14 +364,17 @@ export const clearRenderCache = () => renderCache.clear();
 
 export const getRenderCacheStats = () => renderCache.stats;
 
+const edgePhase = (edge) => edge.phase ?? edge.from;
+
 const traceWaveLine = (ctx, seam, offset = 0) => {
     const { orientation, x, y, from, to, amplitude, wavelength } = seam;
+    const phase = edgePhase(seam);
     const step = 4;
 
     ctx.beginPath();
 
     for (let pos = from; pos <= to; pos += step) {
-        const waveOffset = getWaveOffset(pos, from, amplitude, wavelength);
+        const waveOffset = getWaveOffset(pos, phase, amplitude, wavelength);
         const pointX = orientation === 'vertical' ? x + waveOffset + offset : pos;
         const pointY = orientation === 'vertical' ? pos : y + waveOffset + offset;
 
@@ -352,7 +382,7 @@ const traceWaveLine = (ctx, seam, offset = 0) => {
         else ctx.lineTo(pointX, pointY);
     }
 
-    const finalWaveOffset = getWaveOffset(to, from, amplitude, wavelength);
+    const finalWaveOffset = getWaveOffset(to, phase, amplitude, wavelength);
     ctx.lineTo(
         orientation === 'vertical' ? x + finalWaveOffset + offset : to,
         orientation === 'vertical' ? to : y + finalWaveOffset + offset
@@ -386,12 +416,14 @@ const addHorizontalEdge = (ctx, edge, left, right, reverse = false) => {
     const end = reverse ? left : right;
     const direction = reverse ? -step : step;
 
+    const phase = edgePhase(edge);
+
     for (let x = start; reverse ? x >= end : x <= end; x += direction) {
-        const y = edge.y + getWaveOffset(x, edge.from, edge.amplitude, edge.wavelength);
+        const y = edge.y + getWaveOffset(x, phase, edge.amplitude, edge.wavelength);
         ctx.lineTo(x, y);
     }
 
-    ctx.lineTo(end, edge.y + getWaveOffset(end, edge.from, edge.amplitude, edge.wavelength));
+    ctx.lineTo(end, edge.y + getWaveOffset(end, phase, edge.amplitude, edge.wavelength));
 };
 
 const addVerticalEdge = (ctx, edge, top, bottom, reverse = false) => {
@@ -400,12 +432,14 @@ const addVerticalEdge = (ctx, edge, top, bottom, reverse = false) => {
     const end = reverse ? top : bottom;
     const direction = reverse ? -step : step;
 
+    const phase = edgePhase(edge);
+
     for (let y = start; reverse ? y >= end : y <= end; y += direction) {
-        const x = edge.x + getWaveOffset(y, edge.from, edge.amplitude, edge.wavelength);
+        const x = edge.x + getWaveOffset(y, phase, edge.amplitude, edge.wavelength);
         ctx.lineTo(x, y);
     }
 
-    ctx.lineTo(edge.x + getWaveOffset(end, edge.from, edge.amplitude, edge.wavelength), end);
+    ctx.lineTo(edge.x + getWaveOffset(end, phase, edge.amplitude, edge.wavelength), end);
 };
 
 const createImageClipPath = (ctx, placement) => {
@@ -414,7 +448,7 @@ const createImageClipPath = (ctx, placement) => {
     const bottomY = y + height;
 
     ctx.beginPath();
-    ctx.moveTo(x, topEdge ? topEdge.y + getWaveOffset(x, topEdge.from, topEdge.amplitude, topEdge.wavelength) : y);
+    ctx.moveTo(x, topEdge ? topEdge.y + getWaveOffset(x, edgePhase(topEdge), topEdge.amplitude, topEdge.wavelength) : y);
 
     if (topEdge) addHorizontalEdge(ctx, topEdge, x, rightX);
     else ctx.lineTo(rightX, y);

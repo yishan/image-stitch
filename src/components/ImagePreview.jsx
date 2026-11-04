@@ -33,7 +33,7 @@ const CloseIcon = () => (
     </svg>
 );
 
-const SortableItem = ({ image, index, dimensions, onDimensions, onRemoveImage }) => {
+const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensions, onRemoveImage }) => {
     const {
         attributes,
         listeners,
@@ -52,7 +52,17 @@ const SortableItem = ({ image, index, dimensions, onDimensions, onRemoveImage })
     const imageName = image.file?.name || `图片 ${index + 1}`;
 
     return (
-        <li ref={setNodeRef} style={style} className={`thumb${isDragging ? ' is-dragging' : ''}`}>
+        <li
+            ref={setNodeRef}
+            style={style}
+            className={`thumb${isDragging ? ' is-dragging' : ''}${selected ? ' is-selected' : ''}`}
+            data-selected={selected || undefined}
+            tabIndex={0}
+            aria-current={selected ? 'true' : undefined}
+            aria-label={`第 ${index + 1} 张图片${selected ? '（已选中，按 Delete 删除）' : ''}`}
+            onFocus={() => onSelect(image.id)}
+            onClick={() => onSelect(image.id)}
+        >
             <div className="thumb-frame">
                 <img
                     src={image.url}
@@ -68,7 +78,10 @@ const SortableItem = ({ image, index, dimensions, onDimensions, onRemoveImage })
                 <button
                     type="button"
                     className="thumb-remove"
-                    onClick={() => onRemoveImage(image.id)}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onRemoveImage(image.id);
+                    }}
                     aria-label={`移除第 ${index + 1} 张图片：${imageName}`}
                     title="移除图片"
                 >
@@ -99,7 +112,7 @@ const SortableItem = ({ image, index, dimensions, onDimensions, onRemoveImage })
     );
 };
 
-const ImagePreview = ({ images, max = 6, direction = 'vertical', onRemoveImage, onDragEnd, onReset }) => {
+const ImagePreview = ({ images, max = 6, direction = 'vertical', selectedId = null, onSelectImage, onRemoveImage, onDragEnd, onReset }) => {
     const [dimensions, setDimensions] = useState({});
     const handleDimensions = useCallback((id, size) => {
         setDimensions((previous) => {
@@ -174,6 +187,8 @@ const ImagePreview = ({ images, max = 6, direction = 'vertical', onRemoveImage, 
                                 image={image}
                                 index={index}
                                 dimensions={dimensions[image.id]}
+                                selected={selectedId === image.id}
+                                onSelect={onSelectImage}
                                 onDimensions={handleDimensions}
                                 onRemoveImage={onRemoveImage}
                             />

@@ -117,12 +117,17 @@ test('wave phase stays aligned when image sizes differ', async () => {
         { direction: 'horizontal', margin: 10 }
     );
 
-    assert.equal(vertical.placements[0].bottomEdge.from, 10);
-    assert.equal(vertical.placements[1].topEdge.from, 10);
-    assert.equal(vertical.placements[0].bottomEdge.to, vertical.totalWidth - 10);
-    assert.equal(horizontal.placements[0].rightEdge.from, 10);
-    assert.equal(horizontal.placements[1].leftEdge.from, 10);
-    assert.equal(horizontal.placements[0].rightEdge.to, horizontal.totalHeight - 10);
+    // Shared phase keeps the two clip paths on one continuous wave.
+    assert.equal(vertical.placements[0].bottomEdge.phase, 10);
+    assert.equal(vertical.placements[1].topEdge.phase, 10);
+    assert.equal(horizontal.placements[0].rightEdge.phase, 10);
+    assert.equal(horizontal.placements[1].leftEdge.phase, 10);
+
+    // Seam shadows are clipped to the overlap of the two adjacent images.
+    assert.equal(vertical.placements[0].bottomEdge.from, 310);
+    assert.equal(vertical.placements[0].bottomEdge.to, 910);
+    assert.equal(horizontal.placements[0].rightEdge.from, 260);
+    assert.equal(horizontal.placements[0].rightEdge.to, 760);
 });
 
 test('seam strength scales the wave amplitude', async () => {

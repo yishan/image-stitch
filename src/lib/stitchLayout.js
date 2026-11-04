@@ -32,12 +32,13 @@ export const getSeamStrokeMetrics = (totalWidth, totalHeight) => {
     return { lineWidth, offset };
 };
 
-const createEdge = ({ orientation, x, y, from, to, amplitude, wavelength }) => ({
+const createEdge = ({ orientation, x, y, from, to, phase = from, amplitude, wavelength }) => ({
     orientation,
     x,
     y,
     from,
     to,
+    phase,
     amplitude,
     wavelength
 });
@@ -90,12 +91,15 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
         let cursorX = margin;
         images.forEach((item, index) => {
             const y = margin + (maxHeight - item.height) / 2;
+            const next = images[index + 1];
+            const nextY = next ? margin + (maxHeight - next.height) / 2 : 0;
             const leftEdge = showWave && index > 0
                 ? createEdge({
                     orientation: 'vertical',
                     x: cursorX,
-                    from: margin,
-                    to: totalHeight - margin,
+                    from: y,
+                    to: y + item.height,
+                    phase: margin,
                     amplitude,
                     wavelength
                 })
@@ -104,14 +108,15 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
                 ? createEdge({
                     orientation: 'vertical',
                     x: cursorX + item.width,
-                    from: margin,
-                    to: totalHeight - margin,
+                    from: Math.max(y, nextY),
+                    to: Math.min(y + item.height, nextY + next.height),
+                    phase: margin,
                     amplitude,
                     wavelength
                 })
                 : null;
 
-            if (rightEdge) seamShadows.push(rightEdge);
+            if (rightEdge && rightEdge.to > rightEdge.from) seamShadows.push(rightEdge);
 
             placements.push({
                 img: item.img,
@@ -167,6 +172,7 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
                         x,
                         from: rowY,
                         to: rowY + rowHeight,
+                        phase: rowY,
                         amplitude,
                         wavelength
                     })
@@ -177,6 +183,7 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
                         x: x + item.width,
                         from: rowY,
                         to: rowY + rowHeight,
+                        phase: rowY,
                         amplitude,
                         wavelength
                     })
@@ -185,8 +192,9 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
                     ? createEdge({
                         orientation: 'horizontal',
                         y: seamY,
-                        from: margin,
-                        to: totalWidth - margin,
+                        from: x,
+                        to: x + item.width,
+                        phase: margin,
                         amplitude,
                         wavelength
                     })
@@ -195,8 +203,9 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
                     ? createEdge({
                         orientation: 'horizontal',
                         y: seamY,
-                        from: margin,
-                        to: totalWidth - margin,
+                        from: x,
+                        to: x + item.width,
+                        phase: margin,
                         amplitude,
                         wavelength
                     })
@@ -224,15 +233,20 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
         if (row2.length > 0) placeRow(row2, 1);
 
         if (showWave && row2.length > 0) {
-            // One continuous seam shadow between the two rows.
-            seamShadows.push(createEdge({
-                orientation: 'horizontal',
-                y: seamY,
-                from: margin,
-                to: totalWidth - margin,
-                amplitude,
-                wavelength
-            }));
+            // One continuous seam shadow, clipped to where both rows overlap.
+            const seamStart = Math.max(row1X, row2X);
+            const seamEnd = Math.min(row1X + row1Width, row2X + row2Width);
+            if (seamEnd > seamStart) {
+                seamShadows.push(createEdge({
+                    orientation: 'horizontal',
+                    y: seamY,
+                    from: seamStart,
+                    to: seamEnd,
+                    phase: margin,
+                    amplitude,
+                    wavelength
+                }));
+            }
         }
 
         return { totalWidth, totalHeight, placements, seamShadows, gap, margin };
@@ -252,12 +266,15 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
         const y = cursorY;
         // Shared phase origin across the whole seam so mixed-width images
         // still meet on one continuous wave.
+        const next = images[index + 1];
+        const nextX = next ? margin + (maxWidth - next.width) / 2 : 0;
         const topEdge = showWave && index > 0
             ? createEdge({
                 orientation: 'horizontal',
                 y,
-                from: margin,
-                to: totalWidth - margin,
+                from: x,
+                to: x + item.width,
+                phase: margin,
                 amplitude,
                 wavelength
             })
@@ -266,14 +283,15 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
             ? createEdge({
                 orientation: 'horizontal',
                 y: y + item.height,
-                from: margin,
-                to: totalWidth - margin,
+                from: Math.max(x, nextX),
+                to: Math.min(x + item.width, nextX + next.width),
+                phase: margin,
                 amplitude,
                 wavelength
             })
             : null;
 
-        if (bottomEdge) seamShadows.push(bottomEdge);
+        if (bottomEdge && bottomEdge.to > bottomEdge.from) seamShadows.push(bottomEdge);
 
         placements.push({
             img: item.img,
