@@ -9,8 +9,9 @@ Stitch multiple images into a single long picture, right in your browser — no 
 ## Features
 
 - **Multiple input methods** — drag & drop, file picker, or clipboard paste; fully keyboard-accessible upload and reordering.
-- **Three layouts** — vertical, horizontal, and grid, with an optional wave divider between images.
-- **Theme switcher** — dark and light themes, remembered across visits.
+- **Three layouts** — vertical, horizontal, and grid, with an optional wave seam between images.
+- **Visible output** — live pixel dimensions and file size, with a note when the output had to be scaled down.
+- **Themes** — follows your OS until you pick a side; your choice is remembered, and switching doesn't cascade transitions.
 - **100% local & private** — images are processed only in the browser Canvas and are never uploaded to any server.
 - **Safety limits** — each file must be under 10 MiB with an aspect ratio of at most 30:1; to avoid exhausting browser memory, the output is capped at 8192 px on the longest side and 20 megapixels, downscaling proportionally when needed.
 
@@ -54,6 +55,8 @@ For static hosting platforms, set the build command to `npm run build` and the p
 - `src/lib/stitchLayout.js` — geometry and seam calculations for the three layouts.
 - `src/lib/stitchRenderer.js` — Canvas drawing, output limits, and PNG encoding.
 - `src/components/` — upload, sortable preview, settings, and result interactions.
+- `docs/DESIGN.md` — visual and interaction rules (tokens, states, motion).
+- `docs/ROADMAP.md` — capability roadmap and priorities.
 
 ## License
 
