@@ -10,10 +10,13 @@ Stitch multiple images into a single long picture, right in your browser — no 
 
 - **Multiple input methods** — drag & drop, file picker, or clipboard paste; fully keyboard-accessible upload and reordering.
 - **Three layouts** — vertical, horizontal, and grid, with an optional wave seam between images.
-- **Visible output** — live pixel dimensions and file size, with a note when the output had to be scaled down.
+- **Export controls** — PNG / JPEG / WebP, quality for the lossy formats, and size presets: original (safe defaults), long-image mode, 4096 px longest edge, 1080 px wide, or a custom edge.
+- **Long-image mode** — relaxes the longest edge to 16,384 px and the budget to 20 MP. On browsers that support an 18 MP canvas (Chrome/desktop) six phone screenshots keep their native width; if the runtime probe detects WebKit's ~16 MP canvas ceiling, the export falls back to 16 MP and the result bar says so.
+- **Layout controls** — outer margin, spacing, background (transparent / paper / white / ink / custom), rounded corners for straight seams, and three wave-seam strengths. Small images are never upscaled — they centre at their original size.
+- **Visible output** — live format, pixel dimensions and file size, with a note when the output had to be scaled down.
 - **Themes** — follows your OS until you pick a side; your choice is remembered, and switching doesn't cascade transitions.
 - **100% local & private** — images are processed only in the browser Canvas and are never uploaded to any server.
-- **Safety limits** — each file must be under 10 MiB with an aspect ratio of at most 30:1; to avoid exhausting browser memory, the output is capped at 8192 px on the longest side and 20 megapixels, downscaling proportionally when needed.
+- **Safety limits** — each file must be under 10 MiB with an aspect ratio of at most 30:1; decode budgets and output pixels are capped (8192 px longest edge by default, 16,384 px in long-image mode, 20 MP overall), and the output is downscaled with a visible note when a cap is hit. Large canvases are capability-probed first so lower-limit devices never export a blank image.
 
 ## Tech Stack
 
