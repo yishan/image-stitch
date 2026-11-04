@@ -1,91 +1,188 @@
+/*
+ * Design tokens — "contact sheet" identity.
+ * Warm paper + ink + one safelight-red accent; monospace for measurements.
+ * Every text/background pair here is checked against WCAG AA (>= 4.5:1).
+ */
 :root {
-  --font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  color-scheme: light;
 
-  /* Colors - Adaline Dark (Green Theme) */
-  --color-bg: #0A0C0B;
-  --color-surface: #131815;
+  --font-ui: system-ui, -apple-system, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
 
-  /* Linear Gradients - Green/Teal */
-  --gradient-primary: linear-gradient(135deg, #3DD68C 0%, #00EDA0 100%);
-  --gradient-bg: radial-gradient(circle at 50% 0%, rgba(61, 214, 140, 0.1), transparent 60%);
-  --gradient-text: linear-gradient(to right, #3DD68C, #00EDA0);
+  /* Paper & ink */
+  --paper: #f6f3ed;
+  --surface: #fffefc;
+  --surface-sunken: #efece5;
+  --ink: #201c17;
+  --ink-soft: #57524a;
+  --ink-faint: #6d6861;
+  --line: #d8d3cc;
+  --line-soft: #e6e1da;
+  --line-strong: #c9c4bc;
+  --line-control: #847f7a;
 
-  --color-primary: #3DD68C;
-  --color-primary-hover: #2db374;
-  --color-text: #E8F5E9;
-  --color-text-secondary: #AAB7AD;
-  --color-border: rgba(61, 214, 140, 0.15);
+  /* Safelight accent (text-safe variant for small type) */
+  --accent: #ca4b20;
+  --accent-text: #b13c11;
+  --accent-ink: #fffefc;
+  --accent-wash: color-mix(in oklch, var(--accent) 8%, var(--paper));
 
-  /* Glassmorphism - Dark Green Style */
-  --glass-bg: rgba(19, 24, 21, 0.6);
-  --glass-border: rgba(61, 214, 140, 0.1);
-  --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
-  --backdrop-blur: blur(16px);
+  --danger: #a51d2b;
+  --warn: #a06200;
 
-  /* Spacing */
-  --spacing-xs: 0.5rem;
-  --spacing-sm: 0.75rem;
-  --spacing-md: 1.25rem;
-  --spacing-lg: 2rem;
-  --spacing-xl: 3rem;
+  /* Transparency checkerboard behind the stitched image.
+     Deliberately fixed in both themes: the same export must look the same. */
+  --checker: rgba(32, 28, 23, 0.06);
+  --checker-bg: #f4f1eb;
 
-  /* Radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-full: 9999px;
+  /* Type */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 22px;
+
+  /* Space (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Radius — one control radius; frames and images stay square */
+  --radius: 2px;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+
+  --ring: 0 0 0 2px var(--paper), 0 0 0 4px var(--accent);
 }
 
-:root[data-theme="light"] {
-  --color-bg: #FAFAF8;
-  --color-surface: #FFFFFF;
+:root[data-theme="dark"] {
+  color-scheme: dark;
 
-  /* Subtle warm radial gradient for depth */
-  --gradient-bg: radial-gradient(circle at 50% 0%, rgba(26, 60, 30, 0.03), transparent 60%);
-  --gradient-text: linear-gradient(to right, #1A3C1E, #3A5C3E);
+  --paper: #13110f;
+  --surface: #1e1b18;
+  --surface-sunken: #191613;
+  --ink: #eae7e2;
+  --ink-soft: #a5a199;
+  --ink-faint: #8a857e;
+  --line: #33302c;
+  --line-soft: #292624;
+  --line-strong: #3a3631;
+  --line-control: #736f6b;
 
-  --color-primary: #1A3C1E;
-  --color-primary-hover: #122A15;
-  --color-text: #1A1A1A;
-  --color-text-secondary: #5A5A5A;
-  --color-border: rgba(0, 0, 0, 0.08);
+  --accent: #f0834e;
+  --accent-text: #f5a077;
+  --accent-ink: #13110f;
+  --accent-wash: color-mix(in oklch, var(--accent) 10%, var(--paper));
 
-  /* Modern "Solid Glass" */
-  --glass-bg: rgba(255, 255, 255, 0.9);
-  --glass-border: rgba(0, 0, 0, 0.05);
-  --glass-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  --danger: #e85f61;
+  --warn: #d9a44a;
+
+
+  --ring: 0 0 0 2px var(--paper), 0 0 0 4px var(--accent);
 }
 
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
 }
 
 body {
-  font-family: var(--font-family);
-  background: var(--color-bg);
-  color: var(--color-text);
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background-image: var(--gradient-bg);
-  background-attachment: fixed;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: contain;
 }
 
-#root {
-  width: 100%;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0;
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
 }
 
 button {
+  padding: 0;
+  border: 0;
+  background: none;
   cursor: pointer;
-  border: none;
-  font-family: inherit;
+}
+
+button,
+a,
+input,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+a {
+  color: var(--accent-text);
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  a:hover {
+    text-decoration: underline;
+  }
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+::selection {
+  background: color-mix(in oklch, var(--accent) 24%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+h1,
+h2 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .visually-hidden {
@@ -100,6 +197,80 @@ button {
   border: 0;
 }
 
+/* Button primitive — button hierarchy lives here, not in components. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-size: var(--text-base);
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    transform 80ms var(--ease-out);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn--primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.btn--secondary {
+  border-color: var(--line-control);
+  color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn--primary:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--ink) 88%, var(--accent));
+  }
+
+  .btn--secondary:hover:not(:disabled) {
+    border-color: var(--ink);
+    background: var(--surface);
+  }
+}
+
+/* Touch layouts get the 44px target regardless of viewport width. */
+@media (pointer: coarse) {
+  .btn {
+    height: 44px;
+  }
+}
+
+.btn--sm {
+  height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.btn:disabled {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink-faint);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Theme switches shouldn't become a ragged cascade of per-component transitions. */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -109,9 +280,4 @@ button {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
-}
-
-input,
-select {
-  font-family: inherit;
 }

@@ -2,14 +2,38 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233DD68C'/%3E%3Cpath d='M18 22h28v8H18zm0 12h28v8H18z' fill='%230A0C0B'/%3E%3C/svg%3E" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>图片拼接助手</title>
-    <meta name="description" content="一个简单易用的在线图片拼接工具，支持多张图片垂直或水平拼接，快速生成长图。无需下载，免费使用。" />
-    <meta name="keywords" content="图片拼接, 长图拼接, 在线拼图, 照片拼接, image stitcher, photo joiner, combine images" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" id="theme-color" content="#f6f3ed" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23201C17'/%3E%3Crect x='14' y='14' width='36' height='13' rx='2' fill='%23F6F3ED'/%3E%3Cpath d='M14 41c6 0 6-6 12-6s6 6 12 6 6-6 12-6' stroke='%23CA4B20' stroke-width='3.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <title>图片拼接助手 · 在线长图拼接</title>
+    <meta
+      name="description"
+      content="在浏览器里把多张图片拼成一张长图：纵向、横向、网格三种布局，可选波浪接缝，导出 PNG。图片只在本机处理，不上传服务器。"
+    />
+    <meta name="keywords" content="图片拼接, 长图拼接, 在线拼图, 照片拼接, 聊天记录拼接, image stitcher, photo joiner, combine images" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="图片拼接助手 · 在线长图拼接" />
+    <meta property="og:description" content="纵向、横向、网格三种布局，可选波浪接缝，本地处理并导出 PNG。" />
+    <script>
+      (() => {
+        try {
+          const stored = localStorage.getItem('theme');
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const theme =
+            stored === 'dark' || stored === 'light' ? stored : prefersDark ? 'dark' : 'light';
+          document.documentElement.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          if (themeColor) themeColor.setAttribute('content', theme === 'dark' ? '#13110f' : '#f6f3ed');
+        } catch {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>图片拼接助手需要启用 JavaScript 才能运行。</noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
