@@ -13,6 +13,13 @@ dist-ssr
 .playwright-cli
 *.local
 
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+.last-run.json
+e2e/.preview-dist/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
