@@ -93,6 +93,44 @@ test.describe('移动端（Pixel 7）', () => {
     await waitForResult(page);
   });
 
+  test('触摸可以在结果图上框选打码区域', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 4);
+    await chooseDirection(page, '网格');
+    await page.getByLabel('网格布局').selectOption('2x2');
+    await waitForResult(page);
+
+    const redactButton = page.getByRole('button', { name: /^打码/ });
+    await redactButton.scrollIntoViewIfNeeded();
+    await redactButton.click();
+    const overlay = page.locator('.redaction-layer');
+    await expect(overlay).toBeVisible();
+    await page.locator('img.result-image').scrollIntoViewIfNeeded();
+
+    const imageBox = await page.locator('img.result-image').boundingBox();
+    const x = imageBox.x + imageBox.width * 0.2;
+    const y = imageBox.y + imageBox.height * 0.2;
+    const client = await page.context().newCDPSession(page);
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x, y, id: 1 }]
+    });
+    for (let step = 1; step <= 6; step += 1) {
+      await client.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: x + step * 12, y: y + step * 12, id: 1 }]
+      });
+      await page.waitForTimeout(20);
+    }
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: []
+    });
+
+    await expect(page.getByRole('button', { name: '打码（1）' })).toBeVisible();
+    await expect(page.locator('.redaction-toolbar')).toBeVisible();
+  });
+
   test('移动端也可以切换布局并重新拼接', async ({ page }) => {
     await gotoApp(page);
     await uploadScreens(page, 2);
