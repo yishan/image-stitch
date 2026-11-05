@@ -7,6 +7,7 @@
 > 事实来源分三类，文中分别标注：**代码事实**（本仓库 `src/**`，可复核）、**竞品页面宣称**（2026-11-04 抓取，链接见附录）、**推断**（基于前两者的判断，非引述）。
 >
 > 变更记录：
+> - 2026-11-05：B4 拖拽焦点 + 缩放交付（单元格比例预览、100–300% 缩放、单步撤销、触摸不劫持滚动），证据见 5.6。
 > - 2026-11-05：Sprint A 交付（Playwright e2e/CI、会话恢复 N4、快捷键/撤销 N5、长图预览、设置记忆/重置、缓存与缝线 P2 清零），证据见 5.4；Sprint B 交付（X1 每图旋转/翻转/填充/焦点、X2 网格预设），证据见 5.5。
 > - 2026-11-04：视觉与交互改版落地（接触印相视觉系统、结果信息条、移动端操作栏、无障碍修复），设计约束见 [`docs/DESIGN.md`](./DESIGN.md)；Now 三项（N1/N2/N3）交付，证据见 5.3。
 > - 交付项统一用 ✅ 标注；原始判断保留作为对照。
@@ -40,7 +41,7 @@
 | 交互 | ✅ 设置面板、会话恢复、撤销/重做、快捷键、长图预览、每图调整条、网格预设选择；下载/复制/重试 | `src/components/StitchCanvas.*`、`src/components/ImageAdjustments.jsx`、`src/App.jsx`、`src/lib/sessionStore.js`、`src/lib/history.js` | 已覆盖 X1/X2 |
 | 健壮性 | ✅ 全局 ErrorBoundary（重试/重新加载）+ 单次生成重试 + 会话保存 epoch 防竞态 | `src/components/ErrorBoundary.jsx`、`src/main.jsx`、`src/lib/sessionStore.js` | 组件异常不白屏；IDB 保存失败降级 |
 | 可访问性 | 已有 `aria-pressed`、`role="status"/"alert"`、dnd-kit 键盘排序与播报、图片 alt | `src/components/**` | 基础好；缺全流程键盘化、对比度/动效偏好等系统检查 |
-| 测试 | ✅ 59 个 `node --test` 单测 + 33 条 Playwright e2e（覆盖上传/布局/导出/长图/隐私/会话/快捷键/每图变换/网格预设/焦点像素）；CI 跑 lint + test + build + e2e | `src/lib/*.test.js`、`e2e/**`、`.github/workflows/ci.yml` | 视觉回归已覆盖导出结果 |
+| 测试 | ✅ 63 个 `node --test` 单测 + 38 条 Playwright e2e（覆盖上传/布局/导出/长图/隐私/会话/快捷键/每图变换/网格预设/焦点像素）；CI 跑 lint + test + build + e2e | `src/lib/*.test.js`、`e2e/**`、`.github/workflows/ci.yml` | 视觉回归已覆盖导出结果 |
 | 国际化 | UI 中文硬编码；`index.html` 为 `lang="zh-CN"` | `src/**`、`index.html:2` | README 双语但应用单语 |
 | 分发 | 纯静态构建，支持 `VITE_BASE_PATH` 子路径 | `vite.config.js:6` | 无 manifest/service worker，不可离线、不可安装、无分享入口 |
 | 隐私 | 无任何网络请求（除静态资源）；Canvas 重编码天然剥离 EXIF | 全仓库 | 这是最值钱的资产，但**用户无法自证**（没有可见的"零上传"证明） |
@@ -264,7 +265,14 @@
 - **渲染**：`drawPlacementImage` 统一处理旋转、翻转、contain/cover 与焦点；`createStitchPlan` 输出每图 transform，缓存键仍不含 transform（解码位图可复用）。
 - **测试**：单测 48 → 59（transform 归一化、90° 宽高交换、cover 交叉轴、2×2 奇偶行、1+2 hero 尺寸、1–6 张边界）；e2e 21 → 33（旋转/翻转/重置、撤销、cover 混排、会话恢复、2×2/1+2/1+3 尺寸、焦点像素校验、网格控件尺寸/宽度/外观回归，以及 3 张按自然尺寸的 `toHaveScreenshot` 视觉基线）。`npm run e2e` 33 passed / 0 failed。
 - **视觉回归**：`e2e/visual.spec.js` 把导出结果以自然尺寸渲染到空白页后 `toHaveScreenshot`，基线在 `e2e/__screenshots__/`；不截 UI chrome，避开字体/OS 渲染差异。
-- **仍未做**：拖拽焦点（当前为九宫格选择）、1+2/1+3 对任意张数的更复杂跨格；这些列入后续打磨。
+- **仍未做**：1+2/1+3 对任意张数的更复杂跨格；列入后续打磨。
+
+### 5.6 拖拽焦点交付（2026-11-05）
+
+- 在「调整选中图片」里增加按单元格比例渲染的焦点预览；拖动图片连续修改 `focusX/focusY`，只有真正溢出的轴会移动，避免“拖了没反应”的错觉；缩放滑块支持 100–300%，缩放不改变单元格尺寸。
+- 冲突处理：预览区 `touch-action: none` + Pointer Capture，触摸拖拽不会触发页面滚动；编辑器位于 dnd-kit 之外的调整条中，不与缩略图排序竞争；拖拽只在 pointerup 时写一条历史，方向键 600ms 合并。
+- 兼容：九宫格 select 保留为精确/键盘替代，拖动后显示「自定义」；旋转/翻转后的裁切与导出共用 `imageDraw.js`，预览和导出同源。
+- 验证：单测 59 → 63（单元格比例、zoom 归一化与网格透传、快捷键目标判定）；e2e 33 → 38（桌面拖拽/撤销、方向键合并、拖拽/缩放会话恢复、移动端触摸拖拽不滚动）。`npm run e2e` 38 passed / 0 failed。
 
 ## 6. 非目标（明确不做）
 
