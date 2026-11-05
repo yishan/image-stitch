@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
 import {
+  chooseDirection,
   expectResultSize,
   gotoApp,
   openSettings,
   runOnlyIn,
-  uploadScreens
+  uploadScreens,
+  waitForResult
 } from './helpers/app.js';
 
 test.describe('移动端（Pixel 7）', () => {
@@ -49,6 +51,46 @@ test.describe('移动端（Pixel 7）', () => {
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/\.png$/);
     expect(await download.failure()).toBeNull();
+  });
+
+  test('拖拽焦点不会劫持页面滚动', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 4);
+    await chooseDirection(page, '网格');
+    await page.getByLabel('网格布局').selectOption('2x2');
+    await page.locator('.thumb-frame').first().click();
+    await page.getByRole('group', { name: '填充方式' })
+      .getByRole('button', { name: '填满' })
+      .click();
+
+    const editor = page.locator('.focus-editor');
+    await expect(editor).toBeVisible();
+    await editor.scrollIntoViewIfNeeded();
+    const before = await page.evaluate(() => window.scrollY);
+    const box = await editor.boundingBox();
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+
+    const client = await page.context().newCDPSession(page);
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x, y, id: 1 }]
+    });
+    for (let step = 1; step <= 8; step += 1) {
+      await client.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x, y: y + step * 10, id: 1 }]
+      });
+      await page.waitForTimeout(20);
+    }
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: []
+    });
+
+    await expect(page.locator('.focus-editor__focus-value')).not.toHaveText('50% / 50%');
+    expect(await page.evaluate(() => window.scrollY)).toBe(before);
+    await waitForResult(page);
   });
 
   test('移动端也可以切换布局并重新拼接', async ({ page }) => {

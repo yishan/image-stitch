@@ -18,9 +18,9 @@ PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers npx playwright test e2e/export.spec.js
 | `settings.spec.js` | disclosure open/close/Escape/focus return/outside click, margin+gap output size |
 | `error.spec.js` | extreme aspect-ratio error (`role=alert`), retry |
 | `privacy.spec.js` | zero requests outside `127.0.0.1:5199` / `data:` / `blob:` while uploading + exporting |
-| `mobile.spec.js` | Pixel 7: no horizontal overflow, bottom-sheet settings, download reachable |
+| `mobile.spec.js` | Pixel 7: no horizontal overflow, bottom-sheet settings, download reachable, touch focus drag does not scroll the page |
 | `sprint-a.spec.js` | session restore/clear, undo/redo/Delete/Ctrl+S, preview fit modes, settings memory + reset |
-| `sprint-b.spec.js` | per-image rotate/flip/reset/undo, cover fit, transform persistence, 2×2/1+2/1+3 grid sizes, seam disabled, focus pixel check |
+| `sprint-b.spec.js` | per-image rotate/flip/reset/undo, cover fit, transform persistence, 2×2/1+2/1+3 grid sizes, seam disabled, focus pixel check, drag-focus undo/session, zoom 100–300% |
 | `visual.spec.js` | `toHaveScreenshot` baselines of the exported PNG at natural size (default, rotated, 2×2 grid) |
 
 ## Visual regression

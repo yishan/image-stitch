@@ -184,3 +184,127 @@ test.describe('Sprint B · 网格预设', () => {
     await expect(focus).toHaveValue('右下');
   });
 });
+
+test.describe('Sprint B · 拖拽焦点', () => {
+  runOnlyIn('desktop-chromium');
+
+  test('拖动焦点预览只产生一步撤销，并显示自定义焦点', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 4);
+    await chooseDirection(page, '网格');
+    await page.getByLabel('网格布局').selectOption('2x2');
+    await selectThumb(page, 0);
+    await fitGroup(page).getByRole('button', { name: '填满' }).click();
+
+    const editor = page.locator('.focus-editor');
+    const percent = page.locator('.focus-editor__focus-value');
+    await expect(editor).toBeVisible();
+    await expect(percent).toHaveText('50% / 50%');
+
+    await editor.scrollIntoViewIfNeeded();
+    const box = await editor.boundingBox();
+    const startX = box.x + box.width / 2;
+    const startY = box.y + box.height / 2;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX, startY + box.height * 0.35, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(percent).not.toHaveText('50% / 50%');
+    await expect(page.getByLabel('焦点位置')).toHaveValue('custom');
+
+    await page.keyboard.press('Control+z');
+    await expect(percent).toHaveText('50% / 50%');
+    await expect(page.getByLabel('焦点位置')).toHaveValue('居中');
+  });
+
+  test('方向键微调焦点并合并成一步历史', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 4);
+    await chooseDirection(page, '网格');
+    await page.getByLabel('网格布局').selectOption('2x2');
+    await selectThumb(page, 0);
+    await fitGroup(page).getByRole('button', { name: '填满' }).click();
+
+    const editor = page.locator('.focus-editor');
+    await editor.focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+
+    await expect(page.locator('.focus-editor__focus-value')).toHaveText('56% / 50%');
+    await page.keyboard.press('Control+z');
+    await expect(page.locator('.focus-editor__focus-value')).toHaveText('50% / 50%');
+  });
+
+  test('拖拽后的焦点随会话恢复', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 4);
+    await chooseDirection(page, '网格');
+    await page.getByLabel('网格布局').selectOption('2x2');
+    await selectThumb(page, 0);
+    await fitGroup(page).getByRole('button', { name: '填满' }).click();
+
+    const editor = page.locator('.focus-editor');
+    await editor.scrollIntoViewIfNeeded();
+    const box = await editor.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.75, { steps: 8 });
+    await page.mouse.up();
+
+    const savedPercent = await page.locator('.focus-editor__focus-value').textContent();
+    await waitForSessionSaved(page);
+    await page.reload();
+    await expect(page.locator('.thumb')).toHaveCount(4, { timeout: 20_000 });
+    await waitForResult(page);
+    await selectThumb(page, 0);
+
+    await expect(page.locator('.focus-editor__focus-value')).toHaveText(savedPercent.trim());
+    await expect(page.getByLabel('焦点位置')).toHaveValue('custom');
+  });
+});
+
+test.describe('Sprint B · 焦点缩放', () => {
+  runOnlyIn('desktop-chromium');
+
+  test('缩放改变裁切预览但保持单元格尺寸，并随会话恢复', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 4);
+    await chooseDirection(page, '网格');
+    await page.getByLabel('网格布局').selectOption('2x2');
+    await selectThumb(page, 0);
+    await fitGroup(page).getByRole('button', { name: '填满' }).click();
+
+    const zoom = page.getByLabel('图片缩放');
+    await expect(zoom).toBeVisible();
+    await expect(zoom).toHaveValue('1');
+
+    await zoom.evaluate((input) => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+      setter.call(input, '2');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await expect(page.locator('.focus-editor__zoom-value')).toHaveText('200%');
+    await expectResultSize(page, 1000, 1000);
+
+    await zoom.focus();
+    await page.keyboard.press('Control+z');
+    await expect(zoom).toHaveValue('1');
+    await expect(page.locator('.focus-editor__zoom-value')).toHaveText('100%');
+    await page.keyboard.press('Control+Shift+z');
+    await expect(zoom).toHaveValue('2');
+    await page.locator('body').click({ position: { x: 5, y: 5 } });
+
+    await waitForSessionSaved(page);
+    await page.reload();
+    await expect(page.locator('.thumb')).toHaveCount(4, { timeout: 20_000 });
+    await waitForResult(page);
+    await selectThumb(page, 0);
+
+    await expect(page.getByLabel('图片缩放')).toHaveValue('2');
+    await expect(page.locator('.focus-editor__zoom-value')).toHaveText('200%');
+  });
+});
