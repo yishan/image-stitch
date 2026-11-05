@@ -148,6 +148,26 @@ test.describe('Sprint B · 网格预设', () => {
     expect(await centrePixel()).toEqual([47, 111, 237]);
   });
 
+  test('网格布局控件与分段控件同高、固定宽度并使用自定义外观', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 4);
+    await chooseDirection(page, '网格');
+
+    const wrapper = page.locator('.grid-preset');
+    const direction = page.locator('.stitch-toolbar > .segmented').first();
+    const [wrapperBox, directionBox] = await Promise.all([
+      wrapper.boundingBox(),
+      direction.boundingBox()
+    ]);
+
+    expect(Math.round(wrapperBox.height)).toBe(Math.round(directionBox.height));
+    await expect(page.getByLabel('网格布局')).toHaveCSS('appearance', 'none');
+
+    const width = wrapperBox.width;
+    await page.getByLabel('网格布局').selectOption('1+3');
+    expect((await wrapper.boundingBox()).width).toBe(width);
+  });
+
   test('网格单元的填满与焦点控件可见，焦点可切换', async ({ page }) => {
     await gotoApp(page);
     await uploadScreens(page, 4);

@@ -323,5 +323,6 @@
 
     .adjustments__focus select {
         height: 44px;
+        font-size: 16px;
     }
 }

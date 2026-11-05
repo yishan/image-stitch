@@ -809,6 +809,8 @@
     .field--select select,
     .field--number input {
         height: 44px;
+        /* 16px keeps iOS Safari from zooming the page on focus. */
+        font-size: 16px;
     }
 
     .link-button {
@@ -920,19 +922,80 @@
 
 /* ---------- Grid preset selector ---------- */
 
-.grid-preset select {
-    height: 30px;
-    padding: 0 var(--space-2);
+/* Match the segmented control's outer 36px frame instead of leaving a native
+   select at 30px. appearance:none is required so the control follows the
+   theme tokens in dark mode and so the chevron matches the rest of the UI. */
+.grid-preset {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    padding: 2px;
     border: 1px solid var(--line-control);
     border-radius: var(--radius);
     background: var(--surface);
+    transition:
+        border-color var(--dur-fast) var(--ease-out),
+        background-color var(--dur-fast) var(--ease-out);
+}
+
+.grid-preset select {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 30px;
+    min-width: 92px;
+    padding: 0 26px 0 10px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: var(--ink);
     font-size: var(--text-sm);
+    cursor: pointer;
+}
+
+.grid-preset::after {
+    content: "";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid var(--ink-soft);
+    border-bottom: 1.5px solid var(--ink-soft);
+    transform: translateY(-70%) rotate(45deg);
+    pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .grid-preset:hover {
+        border-color: var(--ink);
+        background: var(--surface-sunken);
+    }
+}
+
+.grid-preset:has(select:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+.grid-preset select:focus-visible {
+    outline: none;
 }
 
 @media (pointer: coarse) {
+    .grid-preset {
+        height: 48px;
+        padding: 1px;
+    }
+
     .grid-preset select {
         height: 44px;
+        min-width: 112px;
+        font-size: 16px;
+    }
+
+    .grid-preset::after {
+        right: 12px;
     }
 }
 
