@@ -14,6 +14,8 @@ Stitch multiple images into a single long picture, right in your browser — no 
 - **Long-image mode** — relaxes the longest edge to 16,384 px and the budget to 20 MP. On browsers that support an 18 MP canvas (Chrome/desktop) six phone screenshots keep their native width; if the runtime probe detects WebKit's ~16 MP canvas ceiling, the export falls back to 16 MP and the result bar says so.
 - **Layout controls** — outer margin, spacing, background (transparent / paper / white / ink / custom), rounded corners for straight seams, and three wave-seam strengths. Small images are never upscaled — they centre at their original size.
 - **Per-image edits** — select a thumbnail to rotate 90°, flip horizontally/vertically, switch between contain and cover, drag the image inside a fixed grid to set the focus, zoom from 100% to 300% (arrow keys and a nine-way preset remain), or reset that image; edits are undoable and restored with the session.
+- **Slices & PDF** — split a tall result at 2048 / 4096 / 8192 px into sortable `part-01-of-N` files, or export a PDF with one slice per page, generated locally.
+- **Local masking** — drag over the result to bake an irreversible mosaic or solid colour block over sensitive areas; multiple regions, undo last and clear all.
 - **Visible output** — live format, pixel dimensions and file size, with a note when the output had to be scaled down.
 - **Long-image preview** — switch between fit-to-stage and fit-to-width; long results then scroll vertically inside the stage.
 - **Session restore** — images, order and every setting are stored locally in IndexedDB and restored after a refresh/crash; a settings-sheet button clears the local session.
@@ -64,6 +66,8 @@ For static hosting platforms, set the build command to `npm run build` and the p
 - `src/lib/imageTransform.js` — per-image rotate/flip/fit/focus normalisation and immutable updates.
 - `src/lib/stitchLayout.js` — geometry and seam calculations for vertical/horizontal/auto-grid/fixed-grid presets.
 - `src/lib/stitchRenderer.js` — Canvas drawing, export specs/limits, encoding and decode cache.
+- `src/lib/exportSlices.js` — slice ranges/naming and a dependency-free PDF writer.
+- `src/lib/redaction.js` — masking normalisation, mosaic and colour-block baking.
 - `src/lib/sessionStore.js` — local session persistence (IndexedDB).
 - `src/lib/history.js` — undo/redo history.
 - `src/components/` — upload, sortable preview, settings sheet, stage and result interactions.
