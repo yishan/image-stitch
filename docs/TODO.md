@@ -14,7 +14,7 @@
 | **A3 效率与可读性** | 快捷键、撤销/重做、长图预览适应宽度/缩放 | 全键盘流程；撤销/重做；长图可读 | ✅ 完成 |
 | **B1 每图控制** | 旋转/翻转/contain-cover/焦点（X1） | 不裁切变形；预览=导出；可重置/撤销 | ✅ 完成 |
 | **B2 布局预设** | 2×2、1+2、1+3、自动网格（X2） | 1–6 张确定性结果；几何单测 | ✅ 完成 |
-| **B3 质量固化** | e2e 扩展、视觉回归、文档更新 | CI 全绿；README/DESIGN/ROADMAP 同步 | 🟡 部分完成 |
+| **B3 质量固化** | e2e 扩展、视觉回归、文档更新 | CI 全绿；README/DESIGN/ROADMAP 同步 | ✅ 完成 |
 
 > 真机验证（iPhone Safari 18MP 长图、iPad、Android）由用户另行执行，代码侧已提供 16MP 探测回退与本地诊断。
 
@@ -84,22 +84,23 @@
 - [x] B1.3 适配：`contain` 不放大；`cover` 纵向/横向按交叉轴填满，固定网格内按 `focusX/focusY` 裁切
 - [x] B1.4 UI：选中缩略图后的调整条（旋转、水平/垂直翻转、适配/填满、焦点九宫格、重置），触控 44px
 - [x] B1.5 预览/导出同源；e2e：旋转/翻转/重置/撤销/cover/会话恢复；几何单测覆盖旋转宽高、cover、焦点像素
-- 验收：任意宽高比混排不变形；焦点像素用 e2e 断言；可撤销。视觉回归截图未做。
+- 验收：任意宽高比混排不变形；焦点像素用 e2e 断言；可撤销。导出结果由 visual.spec.js 截图回归覆盖。
 
 ### B2 布局预设（X2）✅
 - [x] B2.1 几何：`stitchLayout.js` 新增 `createGridPlan`；自动网格保留原 collage 行为
 - [x] B2.2 新增预设：2×2、1+2、1+3（1–6 张确定性铺满；奇偶行自动跨满，无空洞）
 - [x] B2.3 UI：`网格`方向下出现「网格布局」选择器；预览/导出共用同一 plan
 - [x] B2.4 单测：1–6 张、无重叠/越界、2×2 奇偶行、1+2 hero 尺寸；e2e：2×2/1+2/1+3 结果尺寸 + 直边拼缝
-- 验收：预设结果确定；e2e 覆盖尺寸；旧三种布局回归（30 条 e2e 全绿）。
+- 验收：预设结果确定；e2e 覆盖尺寸；旧三种布局回归（33 条 e2e 全绿）。
 
-### B3 质量固化（部分完成）
+### B3 质量固化 ✅
 - [x] e2e 扩展：sprint-b.spec.js（9 条，含焦点像素与控件尺寸断言）
+- [x] 视觉回归截图：visual.spec.js 3 条，导出结果按自然尺寸用 `toHaveScreenshot` 对比基线（`e2e/__screenshots__/`）
 - [x] 文档同步：README / DESIGN / ROADMAP / TODO
-- [ ] 视觉回归截图（`toHaveScreenshot` 基线）
-- [ ] 拖拽焦点（当前为九宫格选择）
+- 拖拽焦点移至「后续打磨」
 
 ### 后续（X3–X9 / moonshot）
+- [ ] 拖拽焦点（当前为九宫格选择；需处理滚动冲突、历史合并与键盘替代）
 - [ ] X3 切片/PDF 导出
 - [ ] X4 本地脱敏（框选模糊/马赛克）
 - [ ] X5 PWA + 离线 + Share Target
@@ -120,7 +121,7 @@
 npm run lint            # ESLint
 npm test                # node --test（当前 59 用例）
 npm run build           # 生产构建
-npm run e2e             # Playwright（当前 30 条；本地需 PLAYWRIGHT_BROWSERS_PATH 或已安装浏览器）
+npm run e2e             # Playwright（当前 33 条；本地需 PLAYWRIGHT_BROWSERS_PATH 或已安装浏览器）
 npm run e2e -- --ui     # 交互调试
 ```
 
@@ -134,7 +135,8 @@ PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers npm run e2e
 ## 5. Sprint B 交付证据（2026-11-05）
 
 - **单测**：`npm test` → 59/59。新增 `imageTransform.test.js`（归一化/宽高交换/不可变更新）与 `stitchLayout.test.js` 7 条（旋转、cover、2×2 奇偶行、1+2 hero、焦点透传、1–6 张边界）。
-- **e2e**：`npm run e2e` → 30 passed / 0 failed / 30 skipped（另一 project 条件跳过）。`sprint-b.spec.js` 9 条覆盖旋转/翻转/重置、撤销、混排 cover、会话恢复、2×2、1+2/1+3、焦点像素。
+- **e2e**：`npm run e2e` → 33 passed / 0 failed / 33 skipped（另一 project 条件跳过）。`sprint-b.spec.js` 9 条覆盖旋转/翻转/重置、撤销、混排 cover、会话恢复、2×2、1+2/1+3、焦点像素；`visual.spec.js` 3 条按自然尺寸截图回归。
+- **视觉回归**：`e2e/__screenshots__/` 下 3 张基线（纵向默认、旋转后、2×2 网格）；正常 `npm run e2e` 会对比，变更预期画面时用 `npx playwright test e2e/visual.spec.js --update-snapshots` 更新。
 - **构建**：`npm run lint` 干净；`npm run build` 干净。
 - **已知不足**：焦点拖动未做（九宫格替代）；网格预设使用直边拼缝；1+2/1+3 对任意张数的复杂跨格可继续打磨。
 

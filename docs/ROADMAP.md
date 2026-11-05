@@ -40,7 +40,7 @@
 | 交互 | ✅ 设置面板、会话恢复、撤销/重做、快捷键、长图预览、每图调整条、网格预设选择；下载/复制/重试 | `src/components/StitchCanvas.*`、`src/components/ImageAdjustments.jsx`、`src/App.jsx`、`src/lib/sessionStore.js`、`src/lib/history.js` | 已覆盖 X1/X2 |
 | 健壮性 | ✅ 全局 ErrorBoundary（重试/重新加载）+ 单次生成重试 + 会话保存 epoch 防竞态 | `src/components/ErrorBoundary.jsx`、`src/main.jsx`、`src/lib/sessionStore.js` | 组件异常不白屏；IDB 保存失败降级 |
 | 可访问性 | 已有 `aria-pressed`、`role="status"/"alert"`、dnd-kit 键盘排序与播报、图片 alt | `src/components/**` | 基础好；缺全流程键盘化、对比度/动效偏好等系统检查 |
-| 测试 | ✅ 59 个 `node --test` 单测 + 30 条 Playwright e2e（覆盖上传/布局/导出/长图/隐私/会话/快捷键/每图变换/网格预设/焦点像素）；CI 跑 lint + test + build + e2e | `src/lib/*.test.js`、`e2e/**`、`.github/workflows/ci.yml` | 视觉回归截图仍可加强 |
+| 测试 | ✅ 59 个 `node --test` 单测 + 33 条 Playwright e2e（覆盖上传/布局/导出/长图/隐私/会话/快捷键/每图变换/网格预设/焦点像素）；CI 跑 lint + test + build + e2e | `src/lib/*.test.js`、`e2e/**`、`.github/workflows/ci.yml` | 视觉回归已覆盖导出结果 |
 | 国际化 | UI 中文硬编码；`index.html` 为 `lang="zh-CN"` | `src/**`、`index.html:2` | README 双语但应用单语 |
 | 分发 | 纯静态构建，支持 `VITE_BASE_PATH` 子路径 | `vite.config.js:6` | 无 manifest/service worker，不可离线、不可安装、无分享入口 |
 | 隐私 | 无任何网络请求（除静态资源）；Canvas 重编码天然剥离 EXIF | 全仓库 | 这是最值钱的资产，但**用户无法自证**（没有可见的"零上传"证明） |
@@ -262,8 +262,9 @@
 - **X1 每图控制**：新增 `src/lib/imageTransform.js`（rotate/flip/fit/focus 归一化与 `withImageTransform`）；旋转/翻转在布局前应用，旋转交换宽高；`contain` 不放大、`cover` 按交叉轴填满，固定网格单元内按焦点裁切。缩略图下方的「调整选中图片」条提供旋转 90°、水平/垂直翻转、适配/填满、焦点九宫格与重置，全部进入历史栈与会话。
 - **X2 网格预设**：`网格`方向新增 2×2、1+2、1+3 预设（`auto` 保留原自动网格）；固定单元格、奇偶行自动铺满、无重叠/空洞；网格预设使用直边拼缝（波浪开关禁用并提示），支持圆角/间距/边距。
 - **渲染**：`drawPlacementImage` 统一处理旋转、翻转、contain/cover 与焦点；`createStitchPlan` 输出每图 transform，缓存键仍不含 transform（解码位图可复用）。
-- **测试**：单测 48 → 59（transform 归一化、90° 宽高交换、cover 交叉轴、2×2 奇偶行、1+2 hero 尺寸、1–6 张边界）；e2e 21 → 30（旋转/翻转/重置、撤销、cover 混排、会话恢复、2×2/1+2/1+3 尺寸、焦点像素校验、网格控件尺寸/宽度/外观回归）。`npm run e2e` 30 passed / 0 failed。
-- **仍未做**：视觉回归截图、拖拽焦点（当前为九宫格选择）、1+2/1+3 对任意张数的更复杂跨格；这些列入后续打磨。
+- **测试**：单测 48 → 59（transform 归一化、90° 宽高交换、cover 交叉轴、2×2 奇偶行、1+2 hero 尺寸、1–6 张边界）；e2e 21 → 33（旋转/翻转/重置、撤销、cover 混排、会话恢复、2×2/1+2/1+3 尺寸、焦点像素校验、网格控件尺寸/宽度/外观回归，以及 3 张按自然尺寸的 `toHaveScreenshot` 视觉基线）。`npm run e2e` 33 passed / 0 failed。
+- **视觉回归**：`e2e/visual.spec.js` 把导出结果以自然尺寸渲染到空白页后 `toHaveScreenshot`，基线在 `e2e/__screenshots__/`；不截 UI chrome，避开字体/OS 渲染差异。
+- **仍未做**：拖拽焦点（当前为九宫格选择）、1+2/1+3 对任意张数的更复杂跨格；这些列入后续打磨。
 
 ## 6. 非目标（明确不做）
 
