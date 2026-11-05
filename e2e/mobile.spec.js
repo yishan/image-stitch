@@ -131,6 +131,22 @@ test.describe('移动端（Pixel 7）', () => {
     await expect(page.locator('.redaction-toolbar')).toBeVisible();
   });
 
+  test('英文界面不产生横向溢出', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByRole('button', { name: 'English' }).click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.getByRole('heading', { level: 1, name: 'Image Stitch' })).toBeVisible();
+    await uploadScreens(page, 3);
+    await expectResultSize(page, 500, 4800);
+
+    await page.getByRole('group', { name: 'Layout direction' })
+      .getByRole('button', { name: 'Grid', exact: true })
+      .click();
+    await openSettings(page);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+  });
+
   test('移动端也可以切换布局并重新拼接', async ({ page }) => {
     await gotoApp(page);
     await uploadScreens(page, 2);
