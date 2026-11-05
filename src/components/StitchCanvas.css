@@ -917,3 +917,36 @@
         height: 44px;
     }
 }
+
+/* ---------- Grid preset selector ---------- */
+
+.grid-preset select {
+    height: 30px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--line-control);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: var(--text-sm);
+}
+
+@media (pointer: coarse) {
+    .grid-preset select {
+        height: 44px;
+    }
+}
+
+/* The seam checkbox is disabled for fixed-cell grid presets. */
+.seam input:disabled + .seam-box {
+    border-color: var(--line);
+    background: var(--surface-sunken);
+    color: var(--ink-faint);
+}
+
+.seam input:disabled ~ .seam-label {
+    color: var(--ink-faint);
+}
+
+.seam:has(input:disabled) {
+    cursor: not-allowed;
+}

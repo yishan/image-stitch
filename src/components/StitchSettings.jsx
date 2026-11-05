@@ -68,6 +68,8 @@ const StitchSettings = ({
     onClearSession
 }) => {
     const showWave = settings.showWave !== false;
+    const gridDirect = settings.direction === 'collage' && (settings.gridPreset || 'auto') !== 'auto';
+    const waveActive = showWave && !gridDirect;
     const customColor = isCustomHex(settings.backgroundColor) ? settings.backgroundColor : '#ffffff';
 
     return (
@@ -82,10 +84,11 @@ const StitchSettings = ({
                     min={0}
                     max={32}
                     step={2}
-                    disabled={showWave}
+                    disabled={waveActive}
                     onChange={(radius) => onSettingChange({ radius })}
                 />
-                {showWave && <p className="field-hint">波浪接缝开启时，圆角暂不生效。</p>}
+                {waveActive && <p className="field-hint">波浪接缝开启时，圆角暂不生效。</p>}
+                {gridDirect && <p className="field-hint">网格预设使用直边拼缝，波浪接缝暂不生效。</p>}
 
                 <div className="choice" role="group" aria-label="背景颜色">
                     <span className="choice__label">背景</span>
@@ -121,7 +124,7 @@ const StitchSettings = ({
                     label="波浪强度"
                     options={SEAM_STRENGTHS}
                     value={settings.seamStrength || 'regular'}
-                    disabled={!showWave}
+                    disabled={!waveActive}
                     onChange={(seamStrength) => onSettingChange({ seamStrength })}
                 />
                 <p className="field-hint">作用于相邻图片之间的波浪线；关闭接缝后使用直边。</p>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createStitchPlan } from '../lib/stitchLayout.js';
+import { GRID_PRESETS, createStitchPlan } from '../lib/stitchLayout.js';
 import {
     DEFAULT_EXPORT_SETTINGS,
     DEFAULT_OUTPUT_LIMITS,
@@ -59,6 +59,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     const support = getExportSupport();
     const showWave = settings.showWave !== false;
     const previewMode = settings.previewMode === 'width' ? 'width' : 'fit';
+    const gridDirect = settings.direction === 'collage' && (settings.gridPreset || 'auto') !== 'auto';
     const qualityValue = Math.round((exportSettings.quality ?? DEFAULT_EXPORT_SETTINGS.quality) * 100);
     const isCustomized = (
         settings.gap > 0
@@ -70,6 +71,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
         || exportSettings.sizeMode !== 'auto'
         || exportSettings.quality !== DEFAULT_EXPORT_SETTINGS.quality
         || previewMode !== 'fit'
+        || (settings.gridPreset || 'auto') !== 'auto'
     );
 
     useEffect(() => {
@@ -330,10 +332,26 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     ))}
                 </div>
 
-                <label className="seam">
+                {settings.direction === 'collage' && (
+                    <label className="grid-preset">
+                        <span className="visually-hidden">网格布局</span>
+                        <select
+                            aria-label="网格布局"
+                            value={settings.gridPreset || 'auto'}
+                            onChange={(event) => updateSettings({ gridPreset: event.target.value })}
+                        >
+                            {GRID_PRESETS.map(([id, label]) => (
+                                <option key={id} value={id}>{label}</option>
+                            ))}
+                        </select>
+                    </label>
+                )}
+
+                <label className="seam" title={gridDirect ? '网格预设使用直边拼缝' : undefined}>
                     <input
                         type="checkbox"
                         checked={showWave}
+                        disabled={gridDirect}
                         onChange={(event) => updateSettings({ showWave: event.target.checked })}
                     />
                     <span className="seam-box" aria-hidden="true">
