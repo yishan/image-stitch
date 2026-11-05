@@ -7,6 +7,7 @@ import {
 } from '../lib/stitchRenderer.js';
 import { isCustomHex } from '../lib/stitchSettings.js';
 import { ChoiceGroup, RangeField } from './SettingsFields.jsx';
+import { SLICE_HEIGHT_OPTIONS } from '../lib/exportSlices.js';
 
 const SESSION_LABELS = {
     loading: '正在读取本机会话…',
@@ -170,6 +171,24 @@ const StitchSettings = ({
                         value={exportSettings.customEdge}
                         onCommit={(customEdge) => onExportChange({ customEdge })}
                     />
+                )}
+
+                <label className="field field--select">
+                    <span className="field__label">切片</span>
+                    <select
+                        aria-label="切片高度"
+                        value={exportSettings.sliceHeight || 0}
+                        onChange={(event) => onExportChange({ sliceHeight: Number(event.target.value) })}
+                    >
+                        {SLICE_HEIGHT_OPTIONS.map(([value, label]) => (
+                            <option key={value} value={value}>{label}</option>
+                        ))}
+                    </select>
+                </label>
+                {estimate && Number(exportSettings.sliceHeight) > 0 && (
+                    <p className="field-hint">
+                        按高度切成 {Math.ceil(estimate.height / Number(exportSettings.sliceHeight))} 张切片，文件名带序号。
+                    </p>
                 )}
 
                 {estimate && (

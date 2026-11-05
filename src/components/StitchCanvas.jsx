@@ -15,6 +15,8 @@ import {
     renderStitch
 } from '../lib/stitchRenderer.js';
 import { isEditableTarget } from '../lib/keyboard.js';
+import { canvasToPdfBlob, getSliceRanges, sliceCanvasToBlobs, sliceFilename } from '../lib/exportSlices.js';
+import { DEFAULT_REDACTION_COLOR, applyRedactions } from '../lib/redaction.js';
 import { ChevronIcon, CheckIcon, DownloadIcon } from './ui-icons.jsx';
 import StitchSettings from './StitchSettings.jsx';
 import StitchStage from './StitchStage.jsx';
@@ -53,6 +55,10 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     const [actionMessage, setActionMessage] = useState('');
     const [isCopied, setIsCopied] = useState(false);
     const [retryKey, setRetryKey] = useState(0);
+    const [redactions, setRedactions] = useState([]);
+    const [redactMode, setRedactMode] = useState(false);
+    const [redactionMode, setRedactionMode] = useState('mosaic');
+    const [redactionColor, setRedactionColor] = useState(DEFAULT_REDACTION_COLOR);
 
     const exportSettings = settings.export || DEFAULT_EXPORT_SETTINGS;
     const format = getExportFormat(exportSettings.format);
@@ -61,6 +67,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     const previewMode = settings.previewMode === 'width' ? 'width' : 'fit';
     const gridDirect = settings.direction === 'collage' && (settings.gridPreset || 'auto') !== 'auto';
     const qualityValue = Math.round((exportSettings.quality ?? DEFAULT_EXPORT_SETTINGS.quality) * 100);
+    const sliceHeight = Number(exportSettings.sliceHeight) || 0;
     const isCustomized = (
         settings.gap > 0
         || settings.margin > 0
@@ -70,6 +77,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
         || exportSettings.format !== 'png'
         || exportSettings.sizeMode !== 'auto'
         || exportSettings.quality !== DEFAULT_EXPORT_SETTINGS.quality
+        || sliceHeight > 0
         || previewMode !== 'fit'
         || (settings.gridPreset || 'auto') !== 'auto'
     );
@@ -145,6 +153,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     ? getSafeMaxPixels(preliminary.width * preliminary.height)
                     : DEFAULT_OUTPUT_LIMITS.maxPixels;
                 const plan = renderStitch(canvas, loadedImages, settings, { maxPixels });
+                applyRedactions(canvas, redactions);
                 const blob = await canvasToBlob(
                     canvas,
                     currentFormat.mime,
@@ -202,7 +211,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
             window.clearTimeout(timer);
             if (generationRef.current === generation) generationRef.current += 1;
         };
-    }, [images, settings, retryKey]);
+    }, [images, settings, redactions, retryKey]);
 
     const estimate = useMemo(() => {
         if (!sourceImages || sourceImages.length === 0) return null;
@@ -249,13 +258,61 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
         onResetSettings();
     }, [onResetSettings]);
 
-    const handleDownload = useCallback(() => {
-        if (!canvasUrl || !output) return;
+    const triggerDownload = useCallback((blobOrUrl, filename) => {
+        const url = typeof blobOrUrl === 'string' ? blobOrUrl : URL.createObjectURL(blobOrUrl);
         const link = document.createElement('a');
-        link.download = `stitch-${settings.direction}-${downloadStamp()}.${output.format.ext}`;
-        link.href = canvasUrl;
+        link.download = filename;
+        link.href = url;
         link.click();
-    }, [canvasUrl, output, settings.direction]);
+        link.remove();
+        if (typeof blobOrUrl !== 'string') {
+            window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }
+    }, []);
+
+    const handleDownload = useCallback(async () => {
+        if (!canvasUrl || !output || !canvasRef.current) return;
+
+        try {
+            const stamp = downloadStamp();
+            const base = `stitch-${settings.direction}-${stamp}`;
+            const ranges = getSliceRanges(output.height, sliceHeight);
+
+            if (ranges.length > 1) {
+                const slices = await sliceCanvasToBlobs(canvasRef.current, {
+                    sliceHeight,
+                    mime: output.format.mime,
+                    quality: output.format.lossy ? exportSettings.quality : undefined
+                });
+                for (const slice of slices) {
+                    triggerDownload(
+                        slice.blob,
+                        sliceFilename(base, slice.index, slices.length, output.format.ext)
+                    );
+                    await new Promise((resolve) => window.setTimeout(resolve, 150));
+                }
+                setActionMessage(`已导出 ${slices.length} 张切片`);
+                return;
+            }
+
+            triggerDownload(canvasUrl, `${base}.${output.format.ext}`);
+            setActionMessage('');
+        } catch (downloadError) {
+            setActionMessage(downloadError.message || '导出失败，请重试。');
+        }
+    }, [canvasUrl, exportSettings.quality, output, settings.direction, sliceHeight, triggerDownload]);
+
+    const handleDownloadPdf = useCallback(async () => {
+        if (!canvasRef.current || !output) return;
+
+        try {
+            const blob = await canvasToPdfBlob(canvasRef.current, { sliceHeight });
+            triggerDownload(blob, `stitch-${settings.direction}-${downloadStamp()}.pdf`);
+            setActionMessage('已导出 PDF');
+        } catch (downloadError) {
+            setActionMessage(downloadError.message || 'PDF 导出失败，请重试。');
+        }
+    }, [output, settings.direction, sliceHeight, triggerDownload]);
 
     const handleCopy = async () => {
         if (!canvasRef.current) return;
@@ -279,9 +336,37 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
         }
     };
 
+    const addRedaction = useCallback((rectangle) => {
+        setRedactions((previous) => [...previous, {
+            ...rectangle,
+            mode: redactionMode,
+            color: redactionColor
+        }]);
+    }, [redactionColor, redactionMode]);
+
+    const undoRedaction = useCallback(() => {
+        setRedactions((previous) => previous.slice(0, -1));
+    }, []);
+
+    const clearRedactions = useCallback(() => {
+        setRedactions([]);
+    }, []);
+
+    const toggleRedactMode = useCallback(() => {
+        if (redactMode) {
+            setRedactMode(false);
+            setActionMessage('');
+            return;
+        }
+        updateSettings({ previewMode: 'fit' });
+        setRedactMode(true);
+        setActionMessage('拖动结果图框选要打码的区域');
+    }, [redactMode, updateSettings]);
+
     const showPreview = Boolean(canvasUrl) && !error;
     const hasResult = showPreview && !isGenerating;
     const outputFormat = output?.format || format;
+    const sliceCount = output ? getSliceRanges(output.height, sliceHeight).length : 1;
 
     useEffect(() => {
         const handleKeyDown = (event) => {
@@ -367,6 +452,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                         type="button"
                         className={previewMode === 'fit' ? 'is-active' : ''}
                         aria-pressed={previewMode === 'fit'}
+                        disabled={redactMode}
                         onClick={() => updateSettings({ previewMode: 'fit' })}
                     >
                         适应整图
@@ -375,6 +461,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                         type="button"
                         className={previewMode === 'width' ? 'is-active' : ''}
                         aria-pressed={previewMode === 'width'}
+                        disabled={redactMode}
                         onClick={() => updateSettings({ previewMode: 'width' })}
                     >
                         适应宽度
@@ -409,15 +496,70 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                 </details>
             </div>
 
-            <StitchStage
-                canvasRef={canvasRef}
-                isGenerating={isGenerating}
-                error={error}
-                canvasUrl={canvasUrl}
-                output={output}
-                previewMode={previewMode}
-                onRetry={() => setRetryKey((value) => value + 1)}
-            />
+            <div className="stage-stack">
+                {redactMode && (
+                    <div className="redaction-toolbar" role="group" aria-label="打码工具">
+                        <span className="redaction-toolbar__hint">拖动结果图框选要打码的区域</span>
+                        <div className="redaction-modes" role="group" aria-label="打码方式">
+                            <button
+                                type="button"
+                                className={`btn btn--secondary btn--sm${redactionMode === 'mosaic' ? ' is-active' : ''}`}
+                                aria-pressed={redactionMode === 'mosaic'}
+                                onClick={() => setRedactionMode('mosaic')}
+                            >
+                                马赛克
+                            </button>
+                            <button
+                                type="button"
+                                className={`btn btn--secondary btn--sm${redactionMode === 'color' ? ' is-active' : ''}`}
+                                aria-pressed={redactionMode === 'color'}
+                                onClick={() => setRedactionMode('color')}
+                            >
+                                色块
+                            </button>
+                            {redactionMode === 'color' && (
+                                <input
+                                    type="color"
+                                    aria-label="色块颜色"
+                                    title="色块颜色"
+                                    value={redactionColor}
+                                    onChange={(event) => setRedactionColor(event.target.value)}
+                                />
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            className="btn btn--secondary btn--sm"
+                            onClick={undoRedaction}
+                            disabled={redactions.length === 0}
+                        >
+                            撤销上一处
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn--secondary btn--sm"
+                            onClick={clearRedactions}
+                            disabled={redactions.length === 0}
+                        >
+                            清除全部
+                        </button>
+                        <button type="button" className="btn btn--secondary btn--sm" onClick={toggleRedactMode}>
+                            完成
+                        </button>
+                    </div>
+                )}
+                <StitchStage
+                    canvasRef={canvasRef}
+                    isGenerating={isGenerating}
+                    error={error}
+                    canvasUrl={canvasUrl}
+                    output={output}
+                    previewMode={previewMode}
+                    redactMode={redactMode}
+                    onAddRedaction={addRedaction}
+                    onRetry={() => setRetryKey((value) => value + 1)}
+                />
+            </div>
 
             <div className="stitch-actions">
                 <p className="output-meta">
@@ -448,6 +590,16 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                 <div className="action-buttons">
                     <button
                         type="button"
+                        className={`btn btn--secondary${redactMode ? ' is-active' : ''}`}
+                        onClick={toggleRedactMode}
+                        disabled={!hasResult}
+                        aria-pressed={redactMode}
+                        title="框选区域并不可逆地打码"
+                    >
+                        打码{redactions.length > 0 ? `（${redactions.length}）` : ''}
+                    </button>
+                    <button
+                        type="button"
                         className="btn btn--secondary"
                         onClick={handleCopy}
                         disabled={!hasResult}
@@ -465,12 +617,21 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     </span>
                     <button
                         type="button"
+                        className="btn btn--secondary"
+                        onClick={handleDownloadPdf}
+                        disabled={!hasResult}
+                        title={`导出 PDF${sliceCount > 1 ? `（${sliceCount} 页）` : ''}`}
+                    >
+                        下载 PDF
+                    </button>
+                    <button
+                        type="button"
                         className="btn btn--primary"
                         onClick={handleDownload}
                         disabled={!hasResult}
                     >
                         <DownloadIcon />
-                        下载 {outputFormat.label}
+                        {sliceCount > 1 ? `下载 ${sliceCount} 张切片` : `下载 ${outputFormat.label}`}
                     </button>
                 </div>
             </div>

@@ -1013,3 +1013,123 @@
 .seam:has(input:disabled) {
     cursor: not-allowed;
 }
+
+/* ---------- Redaction ---------- */
+
+.stage-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+    min-height: 0;
+}
+
+.stage-stack .stage {
+    flex: 1 1 auto;
+}
+
+.redaction-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--accent);
+    background: color-mix(in oklch, var(--accent) 7%, var(--surface));
+}
+
+.redaction-toolbar__hint {
+    flex: 1;
+    min-width: 180px;
+    color: var(--ink-soft);
+    font-size: var(--text-sm);
+}
+
+.redaction-modes {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.redaction-modes .btn {
+    flex: none;
+}
+
+.redaction-modes input[type="color"] {
+    width: 32px;
+    height: 32px;
+    padding: 2px;
+    border: 1px solid var(--line-control);
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: pointer;
+}
+
+.redaction-toolbar .btn {
+    flex: none;
+}
+
+.redaction-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.redaction-layer__hint {
+    position: absolute;
+    top: var(--space-3);
+    left: 50%;
+    padding: 4px 8px;
+    transform: translateX(-50%);
+    border: 1px solid var(--line-control);
+    background: var(--surface);
+    color: var(--ink-soft);
+    font-size: var(--text-xs);
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.redaction-drag {
+    position: absolute;
+    border: 1px solid var(--accent);
+    background: color-mix(in oklch, var(--accent) 22%, transparent);
+    pointer-events: none;
+}
+
+.btn.is-active {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+}
+
+@media (max-width: 900px) {
+    .redaction-toolbar {
+        align-items: stretch;
+    }
+
+    .redaction-toolbar__hint {
+        flex-basis: 100%;
+        min-width: 0;
+    }
+
+    .redaction-toolbar .btn {
+        flex: 1;
+    }
+
+    .redaction-modes {
+        flex: none;
+    }
+}
+
+@media (pointer: coarse) {
+    .redaction-toolbar .btn {
+        min-height: 44px;
+    }
+
+    .redaction-modes input[type="color"] {
+        width: 44px;
+        height: 44px;
+    }
+}

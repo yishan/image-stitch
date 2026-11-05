@@ -52,7 +52,8 @@ export const DEFAULT_EXPORT_SETTINGS = {
     format: 'png',
     quality: 0.9,
     sizeMode: 'auto',
-    customEdge: 4096
+    customEdge: 4096,
+    sliceHeight: 0
 };
 
 export const getExportFormat = (id) => EXPORT_FORMATS[id] || EXPORT_FORMATS.png;

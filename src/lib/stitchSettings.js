@@ -52,7 +52,10 @@ export const sanitizeSettings = (candidate) => {
             format: pick(exportSource.format, EXPORT_FORMAT_IDS, DEFAULT_EXPORT_SETTINGS.format),
             quality: clampNumber(exportSource.quality, 0.3, 1, DEFAULT_EXPORT_SETTINGS.quality),
             sizeMode: pick(exportSource.sizeMode, SIZE_MODE_IDS, DEFAULT_EXPORT_SETTINGS.sizeMode),
-            customEdge: clampNumber(exportSource.customEdge, 512, 16384, DEFAULT_EXPORT_SETTINGS.customEdge)
+            customEdge: clampNumber(exportSource.customEdge, 512, 16384, DEFAULT_EXPORT_SETTINGS.customEdge),
+            sliceHeight: [0, 2048, 4096, 8192].includes(Number(exportSource.sliceHeight))
+                ? Number(exportSource.sliceHeight)
+                : DEFAULT_EXPORT_SETTINGS.sliceHeight
         }
     };
 };
