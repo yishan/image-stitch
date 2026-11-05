@@ -91,10 +91,10 @@
 - [x] B2.2 新增预设：2×2、1+2、1+3（1–6 张确定性铺满；奇偶行自动跨满，无空洞）
 - [x] B2.3 UI：`网格`方向下出现「网格布局」选择器；预览/导出共用同一 plan
 - [x] B2.4 单测：1–6 张、无重叠/越界、2×2 奇偶行、1+2 hero 尺寸；e2e：2×2/1+2/1+3 结果尺寸 + 直边拼缝
-- 验收：预设结果确定；e2e 覆盖尺寸；旧三种布局回归（29 条 e2e 全绿）。
+- 验收：预设结果确定；e2e 覆盖尺寸；旧三种布局回归（30 条 e2e 全绿）。
 
 ### B3 质量固化（部分完成）
-- [x] e2e 扩展：sprint-b.spec.js（8 条，含焦点像素断言）
+- [x] e2e 扩展：sprint-b.spec.js（9 条，含焦点像素与控件尺寸断言）
 - [x] 文档同步：README / DESIGN / ROADMAP / TODO
 - [ ] 视觉回归截图（`toHaveScreenshot` 基线）
 - [ ] 拖拽焦点（当前为九宫格选择）
@@ -120,7 +120,7 @@
 npm run lint            # ESLint
 npm test                # node --test（当前 59 用例）
 npm run build           # 生产构建
-npm run e2e             # Playwright（当前 29 条；本地需 PLAYWRIGHT_BROWSERS_PATH 或已安装浏览器）
+npm run e2e             # Playwright（当前 30 条；本地需 PLAYWRIGHT_BROWSERS_PATH 或已安装浏览器）
 npm run e2e -- --ui     # 交互调试
 ```
 
@@ -134,7 +134,7 @@ PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers npm run e2e
 ## 5. Sprint B 交付证据（2026-11-05）
 
 - **单测**：`npm test` → 59/59。新增 `imageTransform.test.js`（归一化/宽高交换/不可变更新）与 `stitchLayout.test.js` 7 条（旋转、cover、2×2 奇偶行、1+2 hero、焦点透传、1–6 张边界）。
-- **e2e**：`npm run e2e` → 29 passed / 0 failed / 29 skipped（另一 project 条件跳过）。`sprint-b.spec.js` 8 条覆盖旋转/翻转/重置、撤销、混排 cover、会话恢复、2×2、1+2/1+3、焦点像素。
+- **e2e**：`npm run e2e` → 30 passed / 0 failed / 30 skipped（另一 project 条件跳过）。`sprint-b.spec.js` 9 条覆盖旋转/翻转/重置、撤销、混排 cover、会话恢复、2×2、1+2/1+3、焦点像素。
 - **构建**：`npm run lint` 干净；`npm run build` 干净。
 - **已知不足**：焦点拖动未做（九宫格替代）；网格预设使用直边拼缝；1+2/1+3 对任意张数的复杂跨格可继续打磨。
 
