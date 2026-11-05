@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawTransformedImage } from '../lib/imageDraw.js';
 import { normalizeTransform } from '../lib/imageTransform.js';
+import { useI18n } from '../i18n/index.jsx';
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 
 const FocusEditor = ({ image, index, cellAspect, onChange }) => {
+    const { t } = useI18n();
     const transform = normalizeTransform(image.transform);
     const [draft, setDraft] = useState(null);
     const focus = draft || { x: transform.focusX, y: transform.focusY };
@@ -190,18 +192,18 @@ const FocusEditor = ({ image, index, cellAspect, onChange }) => {
     return (
         <div className="focus-editor-wrap">
             <div className="adjustments__focus-head">
-                <span className="adjustments__label">焦点</span>
+                <span className="adjustments__label">{t('focus.label')}</span>
                 <span className="focus-editor__value focus-editor__focus-value mono" aria-hidden="true">
                     {percent(focus.x)} / {percent(focus.y)}
                 </span>
             </div>
 
             <div className="focus-zoom">
-                <label className="adjustments__label" htmlFor={zoomId}>缩放</label>
+                <label className="adjustments__label" htmlFor={zoomId}>{t('focus.zoom')}</label>
                 <input
                     id={zoomId}
                     type="range"
-                    aria-label="图片缩放"
+                    aria-label={t('focus.zoomAria')}
                     min="1"
                     max="3"
                     step="0.05"
@@ -222,7 +224,7 @@ const FocusEditor = ({ image, index, cellAspect, onChange }) => {
                 style={{ aspectRatio: cellAspect }}
                 role="group"
                 tabIndex={0}
-                aria-label={`第 ${index + 1} 张图片焦点预览，当前横向 ${percent(focus.x)}、纵向 ${percent(focus.y)}；拖动图片或用方向键调整`}
+                aria-label={t('focus.editorAria', { index: index + 1, x: percent(focus.x), y: percent(focus.y) })}
                 aria-describedby={hintId}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
@@ -236,7 +238,7 @@ const FocusEditor = ({ image, index, cellAspect, onChange }) => {
             </div>
 
             <p className="field-hint" id={hintId}>
-                拖动图片调整裁切位置（只有超出单元格的方向会移动）；方向键微调，Shift 加速。
+                {t('focus.hint')}
             </p>
         </div>
     );

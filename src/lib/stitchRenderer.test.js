@@ -58,6 +58,6 @@ test('source aspect ratio validation rejects extreme strips', async () => {
     assert.equal(typeof validateImageDimensions, 'function', 'validateImageDimensions should be exported');
     assert.throws(
         () => validateImageDimensions(10_000, 100, { maxAspectRatio: 30 }),
-        /宽高比/
+        (error) => error.code === 'aspectRatio' && error.params?.max === 30
     );
 });

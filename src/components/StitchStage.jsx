@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { normalizeRedaction } from '../lib/redaction.js';
+import { useI18n } from '../i18n/index.jsx';
 import { AlertIcon } from './ui-icons.jsx';
 
 const clamp01 = (value) => Math.min(1, Math.max(0, Number(value) || 0));
@@ -15,6 +16,7 @@ const StitchStage = ({
     onAddRedaction,
     onRetry
 }) => {
+    const { t } = useI18n();
     const showPreview = Boolean(canvasUrl) && !error;
     const stageRef = useRef(null);
     const imageRef = useRef(null);
@@ -124,14 +126,14 @@ const StitchStage = ({
             {isGenerating && !canvasUrl && (
                 <div className="stage-status">
                     <span className="stage-progress" aria-hidden="true"><span /></span>
-                    <p>正在拼接…</p>
+                    <p>{t('stage.generating')}</p>
                 </div>
             )}
 
             {isGenerating && canvasUrl && (
                 <div className="stage-refreshing" role="status">
                     <span className="stage-progress" aria-hidden="true"><span /></span>
-                    <span>更新中…</span>
+                    <span>{t('stage.refreshing')}</span>
                 </div>
             )}
 
@@ -140,7 +142,7 @@ const StitchStage = ({
                     <AlertIcon />
                     <p>{error}</p>
                     <button type="button" className="btn btn--secondary btn--sm" onClick={onRetry}>
-                        重试
+                        {t('stage.retry')}
                     </button>
                 </div>
             )}
@@ -149,7 +151,7 @@ const StitchStage = ({
                 <img
                     ref={imageRef}
                     src={canvasUrl}
-                    alt={output ? `拼接结果预览，${output.width} × ${output.height} 像素` : '拼接结果预览'}
+                    alt={output ? t('stage.alt', { width: output.width, height: output.height }) : t('stage.altEmpty')}
                     className="result-image"
                     width={output?.width}
                     height={output?.height}
@@ -160,14 +162,14 @@ const StitchStage = ({
                 <div
                     className="redaction-layer"
                     role="group"
-                    aria-label="打码框选区域；在结果图上拖动创建马赛克或色块"
+                    aria-label={t('stage.maskAria')}
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
                     onPointerUp={finishDrag}
                     onPointerCancel={finishDrag}
                     onLostPointerCapture={finishDrag}
                 >
-                    {!drag && <span className="redaction-layer__hint">拖动框选要打码的区域</span>}
+                    {!drag && <span className="redaction-layer__hint">{t('stage.maskHint')}</span>}
                     {drag && previewStyle && (
                         <span className="redaction-drag" style={previewStyle} aria-hidden="true" />
                     )}

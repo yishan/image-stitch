@@ -239,21 +239,32 @@ export const validateImageDimensions = (width, height, limits = DEFAULT_SOURCE_L
     const aspectRatio = shortestEdge > 0 ? Math.max(width, height) / shortestEdge : Infinity;
 
     if (aspectRatio > normalizedLimits.maxAspectRatio) {
-        throw new Error(`图片宽高比不能超过 ${normalizedLimits.maxAspectRatio}:1。`);
+        const error = new Error(`Aspect ratio exceeds ${normalizedLimits.maxAspectRatio}:1`);
+        error.code = 'aspectRatio';
+        error.params = { max: normalizedLimits.maxAspectRatio };
+        throw error;
     }
 };
 
 export const canvasToBlob = (canvas, type = 'image/png', quality) => new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
         if (blob) resolve(blob);
-        else reject(new Error('图片编码失败，请降低图片尺寸后重试。'));
+        else {
+            const error = new Error('Image encoding failed');
+            error.code = 'encode';
+            reject(error);
+        }
     }, type, quality);
 });
 
 export const loadImage = (url) => new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('无法读取图片，请确认图片格式正确。'));
+    image.onerror = () => {
+        const error = new Error('Image decode failed');
+        error.code = 'decodeFailed';
+        reject(error);
+    };
     image.src = url;
 });
 
@@ -553,7 +564,11 @@ export const renderStitch = (canvas, loadedImages, settings = {}, options = {}) 
     const { width, height, scale } = dimensions;
     const ctx = canvas.getContext('2d');
 
-    if (!ctx) throw new Error('当前浏览器不支持 Canvas 图片处理。');
+    if (!ctx) {
+        const error = new Error('Canvas is unsupported');
+        error.code = 'canvasUnsupported';
+        throw error;
+    }
 
     canvas.width = width;
     canvas.height = height;

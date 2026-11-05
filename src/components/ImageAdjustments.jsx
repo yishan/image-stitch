@@ -1,8 +1,22 @@
 import { DEFAULT_TRANSFORM, FOCUS_POSITIONS, normalizeTransform } from '../lib/imageTransform.js';
 import { getGridCellAspect } from '../lib/stitchLayout.js';
+import { useI18n } from '../i18n/index.jsx';
 import FocusEditor from './FocusEditor.jsx';
 
+const POSITION_KEYS = {
+    左上: 'topLeft',
+    上: 'top',
+    右上: 'topRight',
+    左: 'left',
+    居中: 'center',
+    右: 'right',
+    左下: 'bottomLeft',
+    下: 'bottom',
+    右下: 'bottomRight'
+};
+
 const ImageAdjustments = ({ image, index, count, direction, gridPreset, onUpdateTransform }) => {
+    const { t } = useI18n();
     if (!image) return null;
 
     const transform = normalizeTransform(image.transform);
@@ -14,10 +28,10 @@ const ImageAdjustments = ({ image, index, count, direction, gridPreset, onUpdate
     const cellAspect = getGridCellAspect(gridPreset, index, count);
 
     return (
-        <div className="adjustments" role="group" aria-label={`调整第 ${index + 1} 张图片`}>
+        <div className="adjustments" role="group" aria-label={t('adjust.groupAria', { index: index + 1 })}>
             <div className="adjustments__head">
                 <span className="mono">{String(index + 1).padStart(2, '0')}</span>
-                <span>调整选中图片</span>
+                <span>{t('adjust.title')}</span>
             </div>
 
             <div className="adjustments__row">
@@ -25,9 +39,9 @@ const ImageAdjustments = ({ image, index, count, direction, gridPreset, onUpdate
                     type="button"
                     className="chip"
                     onClick={() => onUpdateTransform(image.id, { rotate: (transform.rotate + 90) % 360 })}
-                    title="顺时针旋转 90°"
+                    title={t('adjust.rotateTitle')}
                 >
-                    旋转 90°
+                    {t('adjust.rotate')}
                 </button>
                 <button
                     type="button"
@@ -35,7 +49,7 @@ const ImageAdjustments = ({ image, index, count, direction, gridPreset, onUpdate
                     aria-pressed={transform.flipX}
                     onClick={() => onUpdateTransform(image.id, { flipX: !transform.flipX })}
                 >
-                    水平翻转
+                    {t('adjust.flipX')}
                 </button>
                 <button
                     type="button"
@@ -43,20 +57,20 @@ const ImageAdjustments = ({ image, index, count, direction, gridPreset, onUpdate
                     aria-pressed={transform.flipY}
                     onClick={() => onUpdateTransform(image.id, { flipY: !transform.flipY })}
                 >
-                    垂直翻转
+                    {t('adjust.flipY')}
                 </button>
             </div>
 
             <div className="adjustments__row">
-                <span className="adjustments__label">填充</span>
-                <div className="segmented adjustments__segmented" role="group" aria-label="填充方式">
+                <span className="adjustments__label">{t('adjust.fill')}</span>
+                <div className="segmented adjustments__segmented" role="group" aria-label={t('adjust.fitAria')}>
                     <button
                         type="button"
                         className={transform.fit === 'contain' ? 'is-active' : ''}
                         aria-pressed={transform.fit === 'contain'}
                         onClick={() => onUpdateTransform(image.id, { fit: 'contain' })}
                     >
-                        适配
+                        {t('adjust.contain')}
                     </button>
                     <button
                         type="button"
@@ -64,16 +78,16 @@ const ImageAdjustments = ({ image, index, count, direction, gridPreset, onUpdate
                         aria-pressed={transform.fit === 'cover'}
                         onClick={() => onUpdateTransform(image.id, { fit: 'cover' })}
                     >
-                        填满
+                        {t('adjust.cover')}
                     </button>
                 </div>
                 <button
                     type="button"
                     className="chip adjustments__reset"
                     onClick={() => onUpdateTransform(image.id, DEFAULT_TRANSFORM)}
-                    title="重置这张图片的旋转、翻转与填充"
+                    title={t('adjust.resetTitle')}
                 >
-                    重置
+                    {t('adjust.reset')}
                 </button>
             </div>
 
@@ -86,18 +100,18 @@ const ImageAdjustments = ({ image, index, count, direction, gridPreset, onUpdate
                         onChange={onUpdateTransform}
                     />
                     <label className="adjustments__focus">
-                        <span className="adjustments__label">预设</span>
+                        <span className="adjustments__label">{t('adjust.preset')}</span>
                         <select
-                            aria-label="焦点位置"
+                            aria-label={t('adjust.focusAria')}
                             value={focusValue}
                             onChange={(event) => {
                                 const position = FOCUS_POSITIONS.find(([name]) => name === event.target.value);
                                 if (position) onUpdateTransform(image.id, { focusX: position[1], focusY: position[2] });
                             }}
                         >
-                            {!focusPreset && <option value="custom" disabled>自定义</option>}
+                            {!focusPreset && <option value="custom" disabled>{t('adjust.custom')}</option>}
                             {FOCUS_POSITIONS.map(([name]) => (
-                                <option key={name} value={name}>{name}</option>
+                                <option key={name} value={name}>{t(`focus.positions.${POSITION_KEYS[name]}`)}</option>
                             ))}
                         </select>
                     </label>
@@ -107,8 +121,8 @@ const ImageAdjustments = ({ image, index, count, direction, gridPreset, onUpdate
             {transform.fit === 'cover' && !focusEnabled && (
                 <p className="field-hint">
                     {direction === 'collage'
-                        ? '自动网格保持图片原始尺寸；填充/焦点在 2×2、1+2、1+3 预设中生效。'
-                        : '纵向/横向会按交叉轴填满；焦点在固定网格预设中生效。'}
+                        ? t('adjust.hintAuto')
+                        : t('adjust.hintFixed')}
                 </p>
             )}
         </div>

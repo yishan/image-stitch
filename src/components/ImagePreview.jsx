@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { normalizeTransform } from '../lib/imageTransform.js';
+import { useI18n } from '../i18n/index.jsx';
 import ImageAdjustments from './ImageAdjustments.jsx';
 import {
     DndContext,
@@ -36,6 +37,7 @@ const CloseIcon = () => (
 );
 
 const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensions, onRemoveImage }) => {
+    const { t } = useI18n();
     const {
         attributes,
         listeners,
@@ -51,7 +53,7 @@ const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensio
         transition,
         zIndex: isDragging ? 2 : 'auto',
     };
-    const imageName = image.file?.name || `图片 ${index + 1}`;
+    const imageName = image.file?.name || t('preview.imageFallback', { index: index + 1 });
     const imageTransform = normalizeTransform(image.transform);
     const previewStyle = {
         transform: `rotate(${imageTransform.rotate}deg) scaleX(${imageTransform.flipX ? -1 : 1}) scaleY(${imageTransform.flipY ? -1 : 1})`
@@ -65,14 +67,14 @@ const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensio
             data-selected={selected || undefined}
             tabIndex={0}
             aria-current={selected ? 'true' : undefined}
-            aria-label={`第 ${index + 1} 张图片${selected ? '（已选中，按 Delete 删除）' : ''}`}
+            aria-label={`${t('preview.itemAria', { index: index + 1 })}${selected ? t('preview.selectedSuffix') : ''}`}
             onFocus={() => onSelect(image.id)}
             onClick={() => onSelect(image.id)}
         >
             <div className="thumb-frame">
                 <img
                     src={image.url}
-                    alt={`第 ${index + 1} 张图片：${imageName}`}
+                    alt={t('preview.imageAlt', { index: index + 1, name: imageName })}
                     style={previewStyle}
                     onLoad={(event) => onDimensions(image.id, {
                         width: event.currentTarget.naturalWidth,
@@ -89,8 +91,8 @@ const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensio
                         event.stopPropagation();
                         onRemoveImage(image.id);
                     }}
-                    aria-label={`移除第 ${index + 1} 张图片：${imageName}`}
-                    title="移除图片"
+                    aria-label={t('preview.removeAria', { index: index + 1, name: imageName })}
+                    title={t('preview.removeTitle')}
                 >
                     <CloseIcon />
                 </button>
@@ -99,7 +101,7 @@ const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensio
                 <span
                     className="thumb-dim mono"
                     aria-hidden="true"
-                    title={dimensions ? `${dimensions.width}×${dimensions.height} · 比例 ${(dimensions.width / dimensions.height).toFixed(2)}:1` : undefined}
+                    title={dimensions ? `${dimensions.width}×${dimensions.height} · ${t('preview.ratio', { ratio: (dimensions.width / dimensions.height).toFixed(2) })}` : undefined}
                 >
                     {dimensions ? `${dimensions.width}×${dimensions.height}` : '—'}
                 </span>
@@ -107,8 +109,8 @@ const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensio
                     type="button"
                     ref={setActivatorNodeRef}
                     className="thumb-grip"
-                    aria-label={`拖动调整第 ${index + 1} 张图片顺序`}
-                    title="拖动排序"
+                    aria-label={t('preview.dragAria', { index: index + 1 })}
+                    title={t('preview.dragTitle')}
                     {...attributes}
                     {...listeners}
                 >
@@ -120,6 +122,7 @@ const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensio
 };
 
 const ImagePreview = ({ images, max = 6, direction = 'vertical', gridPreset = 'auto', selectedId = null, onSelectImage, onUpdateTransform, onRemoveImage, onDragEnd, onReset }) => {
+    const { t } = useI18n();
     const [dimensions, setDimensions] = useState({});
     const handleDimensions = useCallback((id, size) => {
         setDimensions((previous) => {
@@ -145,38 +148,38 @@ const ImagePreview = ({ images, max = 6, direction = 'vertical', gridPreset = 'a
     );
     const positionFor = (id) => images.findIndex((image) => image.id === id) + 1;
     const announcements = {
-        onDragStart: ({ active }) => `已开始调整第 ${positionFor(active.id)} 张图片。`,
+        onDragStart: ({ active }) => t('preview.dragStart', { index: positionFor(active.id) }),
         onDragOver: ({ active, over }) => over
-            ? `第 ${positionFor(active.id)} 张图片位于第 ${positionFor(over.id)} 张图片附近。`
-            : '图片已移出排序区域。',
+            ? t('preview.dragOver', { index: positionFor(active.id), over: positionFor(over.id) })
+            : t('preview.dragOut'),
         onDragEnd: ({ active, over }) => over
-            ? `第 ${positionFor(active.id)} 张图片已移动到第 ${positionFor(over.id)} 张图片位置。`
-            : '排序已取消。',
-        onDragCancel: () => '排序已取消。'
+            ? t('preview.dragEnd', { index: positionFor(active.id), over: positionFor(over.id) })
+            : t('preview.dragCancel'),
+        onDragCancel: () => t('preview.dragCancel')
     };
 
     if (images.length === 0) return null;
 
     const handleReset = () => {
-        if (window.confirm('确定清空所有已选图片吗？此操作无法撤销。')) onReset();
+        if (window.confirm(t('preview.clearConfirm'))) onReset();
     };
 
     return (
         <section className="preview" aria-labelledby="selected-images-title">
             <div className="preview-head">
-                <h2 id="selected-images-title">已选图片</h2>
+                <h2 id="selected-images-title">{t('preview.title')}</h2>
                 <span className="preview-count mono" aria-hidden="true">
                     {images.length} / {max}
                 </span>
-                <span className="visually-hidden">已选 {images.length} 张，最多 {max} 张</span>
-                <button type="button" className="preview-reset" onClick={handleReset} title="清空所有图片">
-                    清空
+                <span className="visually-hidden">{t('preview.countAria', { count: images.length, max })}</span>
+                <button type="button" className="preview-reset" onClick={handleReset} title={t('preview.clearTitle')}>
+                    {t('preview.clear')}
                 </button>
             </div>
-            <p className="preview-hint">拖动右下角手柄调整顺序</p>
+            <p className="preview-hint">{t('preview.hint')}</p>
             {smallerCount > 0 && (
                 <p className="preview-note">
-                    {smallerCount} 张图片分辨率偏小，将保持原始尺寸居中（不放大）
+                    {t('preview.small', { count: smallerCount })}
                 </p>
             )}
             <DndContext
@@ -185,7 +188,7 @@ const ImagePreview = ({ images, max = 6, direction = 'vertical', gridPreset = 'a
                 onDragEnd={onDragEnd}
                 accessibility={{
                     announcements,
-                    screenReaderInstructions: { draggable: '按空格键开始排序，使用方向键移动，再按空格键放下。' }
+                    screenReaderInstructions: { draggable: t('preview.instructions') }
                 }}
             >
                 <SortableContext items={images.map((image) => image.id)} strategy={rectSortingStrategy}>
@@ -218,8 +221,8 @@ const ImagePreview = ({ images, max = 6, direction = 'vertical', gridPreset = 'a
                 />
             ) : (
                 <div className="adjustments adjustments--hint">
-                    <span className="mono">提示</span>
-                    <span>点选一张缩略图，可旋转、翻转、切换填充或拖动焦点。</span>
+                    <span className="mono">{t('preview.adjustHintLabel')}</span>
+                    <span>{t('preview.adjustHint')}</span>
                 </div>
             )}
         </section>

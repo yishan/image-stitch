@@ -7,27 +7,20 @@ import {
 } from '../lib/stitchRenderer.js';
 import { isCustomHex } from '../lib/stitchSettings.js';
 import { ChoiceGroup, RangeField } from './SettingsFields.jsx';
+import { useI18n } from '../i18n/index.jsx';
 import { SLICE_HEIGHT_OPTIONS } from '../lib/exportSlices.js';
 
-const SESSION_LABELS = {
-    loading: '正在读取本机会话…',
-    saving: '保存中…',
-    saved: '已保存到本机',
-    idle: '尚未保存',
-    cleared: '已清除本机会话',
-    error: '无法保存本机会话（浏览器限制）',
-    unavailable: '当前浏览器不支持本机会话'
-};
 
 const CustomEdgeField = ({ value, onCommit }) => {
+    const { t } = useI18n();
     const [draft, setDraft] = useState(String(value ?? 4096));
 
     return (
         <label className="field field--number">
-            <span className="field__label">最长边</span>
+            <span className="field__label">{t('settings.customEdge')}</span>
             <input
                 type="number"
-                aria-label="自定义长边"
+                aria-label={t('settings.customEdgeAria')}
                 inputMode="numeric"
                 min="512"
                 max="16384"
@@ -68,6 +61,7 @@ const StitchSettings = ({
     onResetSettings,
     onClearSession
 }) => {
+    const { t } = useI18n();
     const showWave = settings.showWave !== false;
     const gridDirect = settings.direction === 'collage' && (settings.gridPreset || 'auto') !== 'auto';
     const waveActive = showWave && !gridDirect;
@@ -76,11 +70,11 @@ const StitchSettings = ({
     return (
         <div className="advanced-panel">
             <div className="advanced-group">
-                <h3>画布</h3>
-                <RangeField label="外边距" value={settings.margin || 0} min={0} max={64} step={4} onChange={(margin) => onSettingChange({ margin })} />
-                <RangeField label="图片间距" value={settings.gap || 0} min={0} max={64} step={4} onChange={(gap) => onSettingChange({ gap })} />
+                <h3>{t('settings.canvas')}</h3>
+                <RangeField label={t('settings.margin')} value={settings.margin || 0} min={0} max={64} step={4} onChange={(margin) => onSettingChange({ margin })} />
+                <RangeField label={t('settings.gap')} value={settings.gap || 0} min={0} max={64} step={4} onChange={(gap) => onSettingChange({ gap })} />
                 <RangeField
-                    label="圆角"
+                    label={t('settings.radius')}
                     value={settings.radius || 0}
                     min={0}
                     max={32}
@@ -88,60 +82,60 @@ const StitchSettings = ({
                     disabled={waveActive}
                     onChange={(radius) => onSettingChange({ radius })}
                 />
-                {waveActive && <p className="field-hint">波浪接缝开启时，圆角暂不生效。</p>}
-                {gridDirect && <p className="field-hint">网格预设使用直边拼缝，波浪接缝暂不生效。</p>}
+                {waveActive && <p className="field-hint">{t('settings.radiusWaveHint')}</p>}
+                {gridDirect && <p className="field-hint">{t('settings.gridDirectHint')}</p>}
 
-                <div className="choice" role="group" aria-label="背景颜色">
-                    <span className="choice__label">背景</span>
+                <div className="choice" role="group" aria-label={t('settings.backgroundAria')}>
+                    <span className="choice__label">{t('settings.background')}</span>
                     <div className="swatches">
-                        {BACKGROUND_OPTIONS.map(([id, label]) => (
+                        {BACKGROUND_OPTIONS.map(([id]) => (
                             <button
                                 key={id}
                                 type="button"
                                 className={`swatch swatch--${id}${settings.backgroundColor === id ? ' is-active' : ''}`}
                                 aria-pressed={settings.backgroundColor === id}
                                 onClick={() => onSettingChange({ backgroundColor: id })}
-                                title={label}
+                                title={t(`settings.backgroundOptions.${id}`)}
                             >
-                                <span className="visually-hidden">{label}</span>
+                                <span className="visually-hidden">{t(`settings.backgroundOptions.${id}`)}</span>
                             </button>
                         ))}
-                        <label className={`swatch swatch--custom${isCustomHex(settings.backgroundColor) ? ' is-active' : ''}`} title="自定义背景色">
+                        <label className={`swatch swatch--custom${isCustomHex(settings.backgroundColor) ? ' is-active' : ''}`} title={t('settings.customBg')}>
                             <input
                                 type="color"
-                                aria-label="自定义背景色"
+                                aria-label={t('settings.customBg')}
                                 value={customColor}
                                 onChange={(event) => onSettingChange({ backgroundColor: event.target.value })}
                             />
-                            <span className="visually-hidden">自定义背景色</span>
+                            <span className="visually-hidden">{t('settings.customBg')}</span>
                         </label>
                     </div>
                 </div>
             </div>
 
             <div className="advanced-group">
-                <h3>接缝</h3>
+                <h3>{t('settings.seam')}</h3>
                 <ChoiceGroup
-                    label="波浪强度"
-                    options={SEAM_STRENGTHS}
+                    label={t('settings.seamStrength')}
+                    options={SEAM_STRENGTHS.map(([id]) => [id, t(`settings.seamStrengths.${id}`)])}
                     value={settings.seamStrength || 'regular'}
                     disabled={!waveActive}
                     onChange={(seamStrength) => onSettingChange({ seamStrength })}
                 />
-                <p className="field-hint">作用于相邻图片之间的波浪线；关闭接缝后使用直边。</p>
+                <p className="field-hint">{t('settings.seamHint')}</p>
             </div>
 
             <div className="advanced-group">
-                <h3>导出</h3>
+                <h3>{t('settings.export')}</h3>
                 <ChoiceGroup
-                    label="格式"
+                    label={t('settings.format')}
                     options={Object.values(EXPORT_FORMATS).map((item) => [item.id, item.label, !support[item.id]])}
                     value={exportSettings.format}
                     onChange={(value) => onExportChange({ format: value })}
                 />
                 {format.lossy ? (
                     <RangeField
-                        label="质量"
+                        label={t('settings.quality')}
                         value={qualityValue}
                         min={30}
                         max={100}
@@ -150,18 +144,18 @@ const StitchSettings = ({
                         onChange={(quality) => onExportChange({ quality: quality / 100 })}
                     />
                 ) : (
-                    <p className="field-hint">PNG 为无损格式，文件通常更大。</p>
+                    <p className="field-hint">{t('settings.pngHint')}</p>
                 )}
 
                 <label className="field field--select">
-                    <span className="field__label">尺寸</span>
+                    <span className="field__label">{t('settings.size')}</span>
                     <select
-                        aria-label="尺寸"
+                        aria-label={t('settings.sizeAria')}
                         value={exportSettings.sizeMode}
                         onChange={(event) => onExportChange({ sizeMode: event.target.value })}
                     >
-                        {SIZE_MODE_OPTIONS.map(([id, label]) => (
-                            <option key={id} value={id}>{label}</option>
+                        {SIZE_MODE_OPTIONS.map(([id]) => (
+                            <option key={id} value={id}>{t(`settings.sizeModes.${id}`)}</option>
                         ))}
                     </select>
                 </label>
@@ -174,36 +168,36 @@ const StitchSettings = ({
                 )}
 
                 <label className="field field--select">
-                    <span className="field__label">切片</span>
+                    <span className="field__label">{t('settings.slice')}</span>
                     <select
-                        aria-label="切片高度"
+                        aria-label={t('settings.sliceAria')}
                         value={exportSettings.sliceHeight || 0}
                         onChange={(event) => onExportChange({ sliceHeight: Number(event.target.value) })}
                     >
-                        {SLICE_HEIGHT_OPTIONS.map(([value, label]) => (
-                            <option key={value} value={value}>{label}</option>
+                        {SLICE_HEIGHT_OPTIONS.map(([value]) => (
+                            <option key={value} value={value}>{t(value === 0 ? 'settings.sliceOptions.none' : `settings.sliceOptions.h${value}`)}</option>
                         ))}
                     </select>
                 </label>
                 {estimate && Number(exportSettings.sliceHeight) > 0 && (
                     <p className="field-hint">
-                        按高度切成 {Math.ceil(estimate.height / Number(exportSettings.sliceHeight))} 张切片，文件名带序号。
+                        {t('settings.sliceHint', { count: Math.ceil(estimate.height / Number(exportSettings.sliceHeight)) })}
                     </p>
                 )}
 
                 {estimate && (
                     <p className="estimate mono">
-                        预计 {estimate.width} × {estimate.height} px · {estimate.megapixels.toFixed(1)} MP
+                        {t('settings.estimate', { width: estimate.width, height: estimate.height, mp: estimate.megapixels.toFixed(1) })}
                     </p>
                 )}
                 {estimate && estimate.megapixels > 12 && (
-                    <p className="field-hint field-hint--warn">大画布：导出可能需要几秒，移动端请留意内存。</p>
+                    <p className="field-hint field-hint--warn">{t('settings.largeCanvasHint')}</p>
                 )}
                 {estimate && estimate.scaled && (
-                    <p className="field-hint">当前尺寸会被安全上限等比缩小。</p>
+                    <p className="field-hint">{t('settings.scaledHint')}</p>
                 )}
                 {estimate?.deviceCapped && (
-                    <p className="field-hint field-hint--warn">当前浏览器的画布上限较低，大图会自动缩放到约 16 MP。</p>
+                    <p className="field-hint field-hint--warn">{t('settings.deviceCapHint')}</p>
                 )}
                 {estimate?.longHelps && exportSettings.sizeMode === 'auto' && (
                     <button
@@ -211,28 +205,28 @@ const StitchSettings = ({
                         className="link-button"
                         onClick={() => onExportChange({ sizeMode: 'long' })}
                     >
-                        改用长图模式（保持 {estimate.longWidth} px 宽）
+                        {t('settings.longMode', { width: estimate.longWidth })}
                     </button>
                 )}
                 {exportSettings.format === 'jpeg' && settings.backgroundColor === 'transparent' && (
-                    <p className="field-hint">JPEG 不支持透明，将改用白色铺底。</p>
+                    <p className="field-hint">{t('settings.jpegTransparentHint')}</p>
                 )}
             </div>
 
             <div className="advanced-footer">
                 <div className="advanced-footer__session">
-                    <p className="field-hint">会话自动保存在本机浏览器（IndexedDB），不会上传。</p>
+                    <p className="field-hint">{t('settings.sessionHint')}</p>
                     <p className="session-status" data-testid="session-status">
-                        {SESSION_LABELS[sessionStatus] || SESSION_LABELS.idle}
+                        {t(`settings.sessions.${sessionStatus || 'idle'}`)}
                     </p>
                 </div>
                 <div className="advanced-footer__actions">
-                    <p className="field-hint">快捷键：⌘/Ctrl+Z 撤销 · ⇧⌘/Ctrl+Z 重做 · ⌘/Ctrl+S 下载 · Delete 删除选中图片</p>
+                    <p className="field-hint">{t('settings.shortcuts')}</p>
                     <button type="button" className="link-button" onClick={onResetSettings}>
-                        恢复默认设置
+                        {t('settings.restoreDefaults')}
                     </button>
                     <button type="button" className="link-button link-button--danger" onClick={onClearSession}>
-                        清除本机会话
+                        {t('settings.clearSession')}
                     </button>
                 </div>
             </div>

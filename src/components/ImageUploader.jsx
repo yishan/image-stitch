@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useI18n } from '../i18n/index.jsx';
 import './ImageUploader.css';
 
 const isApplePlatform = () => {
@@ -20,6 +21,7 @@ const PlusIcon = () => (
 );
 
 const ImageUploader = ({ onImagesUpload, count = 0, max = 6, compact = false, isFull = false }) => {
+    const { t } = useI18n();
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef(null);
 
@@ -76,25 +78,25 @@ const ImageUploader = ({ onImagesUpload, count = 0, max = 6, compact = false, is
                 accept="image/*"
                 disabled={isFull}
                 className="uploader-input"
-                aria-label={compact ? `继续添加图片，目前 ${count} 张，最多 ${max} 张` : `添加图片，最多 ${max} 张`}
+                aria-label={compact ? t('upload.ariaContinue', { count, max }) : t('upload.ariaAdd', { max })}
                 aria-describedby={compact ? undefined : 'upload-instructions'}
             />
 
             {compact ? (
                 <div className="uploader-row">
                     <PlusIcon />
-                    <span className="uploader-row__label">{isFull ? '已达上限' : '继续添加图片'}</span>
+                    <span className="uploader-row__label">{isFull ? t('upload.maxReached') : t('upload.continueAdd')}</span>
                     <span className="uploader-row__count mono" aria-hidden="true">{count} / {max}</span>
                 </div>
             ) : (
                 <div className="uploader-content">
                     <UploadIcon />
-                    <p className="uploader-title">添加图片</p>
+                    <p className="uploader-title">{t('upload.add')}</p>
                     <p id="upload-instructions" className="uploader-hint">
-                        拖拽图片到这里，或点击选择（最多 {max} 张）
+                        {t('upload.hint', { max })}
                     </p>
                     <p className="uploader-paste">
-                        也可以直接粘贴 <kbd>{pasteShortcut}</kbd>
+                        {t('upload.pastePrefix')} <kbd>{pasteShortcut}</kbd>
                     </p>
                 </div>
             )}

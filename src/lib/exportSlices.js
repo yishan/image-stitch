@@ -49,7 +49,11 @@ const drawSlice = (source, range) => {
     canvas.width = source.width;
     canvas.height = range.height;
     const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('当前浏览器不支持 Canvas。');
+    if (!ctx) {
+        const error = new Error('Canvas is unsupported');
+        error.code = 'canvasUnsupported';
+        throw error;
+    }
     ctx.drawImage(source, 0, range.y, source.width, range.height, 0, 0, source.width, range.height);
     return canvas;
 };
@@ -86,7 +90,9 @@ const asBytes = (value) => (value instanceof Uint8Array ? value : encoder.encode
  */
 export const buildImagePdf = (pages) => {
     if (!Array.isArray(pages) || pages.length === 0) {
-        throw new Error('没有可写入 PDF 的图片。');
+        const error = new Error('No images for PDF');
+        error.code = 'pdfEmpty';
+        throw error;
     }
 
     const chunks = [encoder.encode('%PDF-1.4\n')];
@@ -163,7 +169,11 @@ const sliceToJpeg = async (canvas, range, quality = 0.92) => {
     flatten.width = slice.width;
     flatten.height = slice.height;
     const ctx = flatten.getContext('2d');
-    if (!ctx) throw new Error('当前浏览器不支持 Canvas。');
+    if (!ctx) {
+        const error = new Error('Canvas is unsupported');
+        error.code = 'canvasUnsupported';
+        throw error;
+    }
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, flatten.width, flatten.height);
     ctx.drawImage(slice, 0, 0);

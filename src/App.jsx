@@ -5,6 +5,8 @@ import ImageUploader from './components/ImageUploader';
 import ImagePreview from './components/ImagePreview';
 import StitchCanvas from './components/StitchCanvas';
 import ThemeSwitcher from './components/ThemeSwitcher';
+import LocaleSwitcher from './components/LocaleSwitcher';
+import { useI18n } from './i18n/index.jsx';
 import {
   MAX_IMAGE_COUNT,
   MAX_FILE_BYTES,
@@ -55,7 +57,10 @@ const BrandMark = () => (
   </svg>
 );
 
-const EmptyStage = () => (
+const EmptyStage = () => {
+  const { t } = useI18n();
+
+  return (
   <div className="empty-stage">
     <div className="empty-stage__inner">
       <svg className="empty-mark" viewBox="0 0 56 56" fill="none" aria-hidden="true" focusable="false">
@@ -68,11 +73,12 @@ const EmptyStage = () => (
         />
         <path d="M4 36c6 0 6-6 12-6s6 6 12 6 6-6 12-6 6 6 12 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.35" />
       </svg>
-      <h2>长图会出现在这里</h2>
-      <p>在左侧添加图片，选择拼接方向，再下载 PNG。所有处理都在浏览器本地完成。</p>
+      <h2>{t('app.emptyTitle')}</h2>
+      <p>{t('app.emptyDesc')}</p>
     </div>
   </div>
-);
+  );
+};
 
 const PrivacyIcon = () => (
   <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
@@ -99,6 +105,7 @@ const restoreImageFile = (record) => {
 };
 
 function App() {
+  const { t, locale } = useI18n();
   const [history, setHistory] = useState(() => createHistory({ images: [], settings: DEFAULT_SETTINGS }));
   const { images, settings } = history.present;
   const imagesRef = useRef(images);
@@ -209,7 +216,14 @@ function App() {
   useEffect(() => {
     if (!sessionReady || suppressSaveRef.current) return undefined;
     const signature = imagesSignature(images);
-    if (signature === savedImagesSignatureRef.current) return undefined;
+    if (signature === savedImagesSignatureRef.current) {
+        // Undo/redo can return to the last persisted state; markSaving already
+        // set "saving", so restore the saved status without another write.
+        const timer = window.setTimeout(() => {
+            setSessionStatus((previous) => (previous === 'unavailable' ? previous : 'saved'));
+        }, 0);
+        return () => window.clearTimeout(timer);
+    }
     const epoch = sessionEpochRef.current;
 
     const timer = window.setTimeout(async () => {
@@ -232,7 +246,12 @@ function App() {
   useEffect(() => {
     if (!sessionReady || suppressSaveRef.current) return undefined;
     const signature = JSON.stringify(settings);
-    if (signature === savedSettingsSignatureRef.current) return undefined;
+    if (signature === savedSettingsSignatureRef.current) {
+        const timer = window.setTimeout(() => {
+            setSessionStatus((previous) => (previous === 'unavailable' ? previous : 'saved'));
+        }, 0);
+        return () => window.clearTimeout(timer);
+    }
     const epoch = sessionEpochRef.current;
 
     const timer = window.setTimeout(async () => {
@@ -283,11 +302,23 @@ function App() {
     }
 
     const messages = [];
-    if (result.rejected.nonImage > 0) messages.push(`${result.rejected.nonImage} 个非图片文件未添加`);
-    if (result.rejected.tooLarge > 0) messages.push(`${result.rejected.tooLarge} 张图片超过 ${MAX_FILE_BYTES / (1024 * 1024)} MiB，已忽略`);
-    if (result.rejected.overLimit > 0) messages.push(`最多保留 ${MAX_IMAGE_COUNT} 张图片，已忽略 ${result.rejected.overLimit} 张`);
-    setUploadMessage(messages.join('；'));
-  }, [commit]);
+    if (result.rejected.nonImage > 0) {
+      messages.push(t('app.notices.nonImage', { count: result.rejected.nonImage }));
+    }
+    if (result.rejected.tooLarge > 0) {
+      messages.push(t('app.notices.tooLarge', {
+        count: result.rejected.tooLarge,
+        size: MAX_FILE_BYTES / (1024 * 1024)
+      }));
+    }
+    if (result.rejected.overLimit > 0) {
+      messages.push(t('app.notices.overLimit', {
+        max: MAX_IMAGE_COUNT,
+        count: result.rejected.overLimit
+      }));
+    }
+    setUploadMessage(messages.join(locale === 'zh' ? '；' : '; '));
+  }, [commit, locale, t]);
 
   const handleRemoveImage = useCallback((id) => {
     const nextImages = removeImage(imagesRef.current, id, () => {});
@@ -403,11 +434,14 @@ function App() {
           <div className="brand">
             <BrandMark />
             <div className="brand__text">
-              <h1 id="app-title">图片拼接助手</h1>
-              <p>多张图片，拼成一张长图。</p>
+              <h1 id="app-title">{t('app.name')}</h1>
+              <p>{t('app.tagline')}</p>
             </div>
           </div>
-          <ThemeSwitcher theme={theme} toggleTheme={toggleTheme} />
+          <div className="header-actions">
+            <LocaleSwitcher />
+            <ThemeSwitcher theme={theme} toggleTheme={toggleTheme} />
+          </div>
         </header>
 
         <div className="rail-stack">
@@ -444,7 +478,7 @@ function App() {
         </div>
       </aside>
 
-      <main className="stage-column" aria-label="拼接结果">
+      <main className="stage-column" aria-label={t('app.resultLabel')}>
         {images.length > 0 ? (
           <StitchCanvas
             images={images}
@@ -462,7 +496,7 @@ function App() {
       <footer className="app-footer">
         <p className="footer-privacy">
           <PrivacyIcon />
-          图片只在本地处理，不会上传
+          {t('app.privacy')}
         </p>
         <p className="footer-credit">
           Made by{' '}
@@ -472,7 +506,7 @@ function App() {
             <>
               <span aria-hidden="true"> · </span>
               <button type="button" className="footer-clear" onClick={handleClearSession}>
-                清除本机数据
+                {t('app.clearLocalData')}
               </button>
             </>
           )}

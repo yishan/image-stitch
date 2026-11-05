@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { useI18n } from '../i18n/index.jsx';
 import './ErrorBoundary.css';
 
 const CrashIcon = () => (
@@ -8,6 +9,29 @@ const CrashIcon = () => (
         <path d="M17 24.5c2.5 0 2.5-4 5-4" stroke="var(--accent)" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
 );
+
+const CrashFallback = ({ onRetry, onReload, detail }) => {
+    const { t } = useI18n();
+
+    return (
+        <main className="crash" role="alert">
+            <div className="crash__inner">
+                <CrashIcon />
+                <h1>{t('crash.title')}</h1>
+                <p>{t('crash.description')}</p>
+                <div className="crash__actions">
+                    <button type="button" className="btn btn--secondary" onClick={onRetry}>
+                        {t('common.retry')}
+                    </button>
+                    <button type="button" className="btn btn--primary" onClick={onReload}>
+                        {t('crash.reload')}
+                    </button>
+                </div>
+                {detail && <pre className="crash__detail">{detail}</pre>}
+            </div>
+        </main>
+    );
+};
 
 class ErrorBoundary extends Component {
     state = { error: null };
@@ -32,24 +56,11 @@ class ErrorBoundary extends Component {
         if (!this.state.error) return this.props.children;
 
         return (
-            <main className="crash" role="alert">
-                <div className="crash__inner">
-                    <CrashIcon />
-                    <h1>界面出了点问题</h1>
-                    <p>图片仍然只在本机，没有被上传。可以先重试；如果还是失败，重新加载页面。</p>
-                    <div className="crash__actions">
-                        <button type="button" className="btn btn--secondary" onClick={this.handleRetry}>
-                            重试
-                        </button>
-                        <button type="button" className="btn btn--primary" onClick={this.handleReload}>
-                            重新加载
-                        </button>
-                    </div>
-                    {import.meta.env.DEV && this.state.error?.message && (
-                        <pre className="crash__detail">{this.state.error.message}</pre>
-                    )}
-                </div>
-            </main>
+            <CrashFallback
+                onRetry={this.handleRetry}
+                onReload={this.handleReload}
+                detail={import.meta.env.DEV ? this.state.error?.message : ''}
+            />
         );
     }
 }

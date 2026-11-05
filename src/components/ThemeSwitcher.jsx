@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n/index.jsx';
 import './ThemeSwitcher.css';
 
 const SunIcon = () => (
@@ -14,15 +15,16 @@ const MoonIcon = () => (
 );
 
 const ThemeSwitcher = ({ theme, toggleTheme }) => {
-    const nextThemeLabel = theme === 'light' ? '深色' : '浅色';
+    const { t } = useI18n();
+    const label = theme === 'light' ? t('theme.toDark') : t('theme.toLight');
 
     return (
         <button
             type="button"
             className="theme-switcher"
             onClick={toggleTheme}
-            aria-label={`切换到${nextThemeLabel}主题`}
-            title={`切换到${nextThemeLabel}主题`}
+            aria-label={label}
+            title={label}
         >
             {theme === 'light' ? <MoonIcon /> : <SunIcon />}
         </button>
