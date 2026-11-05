@@ -9,10 +9,11 @@ Stitch multiple images into a single long picture, right in your browser — no 
 ## Features
 
 - **Multiple input methods** — drag & drop, file picker, or clipboard paste; fully keyboard-accessible upload and reordering.
-- **Three layouts** — vertical, horizontal, and grid, with an optional wave seam between images.
+- **Layouts** — vertical, horizontal, auto grid, plus fixed-cell 2×2 / 1+2 / 1+3 presets; free layouts support the wave seam, fixed presets use straight joins.
 - **Export controls** — PNG / JPEG / WebP, quality for the lossy formats, and size presets: original (safe defaults), long-image mode, 4096 px longest edge, 1080 px wide, or a custom edge.
 - **Long-image mode** — relaxes the longest edge to 16,384 px and the budget to 20 MP. On browsers that support an 18 MP canvas (Chrome/desktop) six phone screenshots keep their native width; if the runtime probe detects WebKit's ~16 MP canvas ceiling, the export falls back to 16 MP and the result bar says so.
 - **Layout controls** — outer margin, spacing, background (transparent / paper / white / ink / custom), rounded corners for straight seams, and three wave-seam strengths. Small images are never upscaled — they centre at their original size.
+- **Per-image edits** — select a thumbnail to rotate 90°, flip horizontally/vertically, switch between contain and cover, pick a focus point inside a fixed grid, or reset that image; edits are undoable and restored with the session.
 - **Visible output** — live format, pixel dimensions and file size, with a note when the output had to be scaled down.
 - **Long-image preview** — switch between fit-to-stage and fit-to-width; long results then scroll vertically inside the stage.
 - **Session restore** — images, order and every setting are stored locally in IndexedDB and restored after a refresh/crash; a settings-sheet button clears the local session.
@@ -60,7 +61,8 @@ For static hosting platforms, set the build command to `npm run build` and the p
 ## Project Structure
 
 - `src/lib/imageIntake.js` — image validation, count limits, and Object URL lifecycle.
-- `src/lib/stitchLayout.js` — geometry and seam calculations for the three layouts.
+- `src/lib/imageTransform.js` — per-image rotate/flip/fit/focus normalisation and immutable updates.
+- `src/lib/stitchLayout.js` — geometry and seam calculations for vertical/horizontal/auto-grid/fixed-grid presets.
 - `src/lib/stitchRenderer.js` — Canvas drawing, export specs/limits, encoding and decode cache.
 - `src/lib/sessionStore.js` — local session persistence (IndexedDB).
 - `src/lib/history.js` — undo/redo history.

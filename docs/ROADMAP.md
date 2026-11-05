@@ -7,7 +7,7 @@
 > 事实来源分三类，文中分别标注：**代码事实**（本仓库 `src/**`，可复核）、**竞品页面宣称**（2026-11-04 抓取，链接见附录）、**推断**（基于前两者的判断，非引述）。
 >
 > 变更记录：
-> - 2026-11-05：Sprint A 交付（Playwright e2e/CI、会话恢复 N4、快捷键/撤销 N5、长图预览、设置记忆/重置、缓存与缝线 P2 清零），证据见 5.4；Sprint B（X1/X2）待开始。
+> - 2026-11-05：Sprint A 交付（Playwright e2e/CI、会话恢复 N4、快捷键/撤销 N5、长图预览、设置记忆/重置、缓存与缝线 P2 清零），证据见 5.4；Sprint B 交付（X1 每图旋转/翻转/填充/焦点、X2 网格预设），证据见 5.5。
 > - 2026-11-04：视觉与交互改版落地（接触印相视觉系统、结果信息条、移动端操作栏、无障碍修复），设计约束见 [`docs/DESIGN.md`](./DESIGN.md)；Now 三项（N1/N2/N3）交付，证据见 5.3。
 > - 交付项统一用 ✅ 标注；原始判断保留作为对照。
 
@@ -17,7 +17,7 @@
 
 1. **产品不缺功能，缺“闭环”**：~~原来只能拼成一张 PNG、尺寸/体积不可控、超长图被缩到 1/2 宽~~ → **已交付**：PNG/JPEG/WebP + 质量 + 尺寸预设 + 长图模式，结果条显示格式/px/体积/降采样标注；外边距、间距、背景、圆角、接缝强度也已有 UI。下一个缺口是「每图裁剪对位」与「布局预设」。
 2. **护城河是“本地 + 长图”**：竞品要么上传服务器（[IMGonline 明确保留 2 小时](https://www.imgonline.com.ua/eng/sitemap.php)），要么走模板/设计工具路线（[稿定 80+ 布局](https://www.gaoding.com/pintu)、[PhotoJoiner](https://www.photojoiner.com/features/collage-maker)）。我们应把"长截图/聊天记录拼接"做成唯一差异点，而不是变成又一个拼图编辑器。
-3. **先做三件（约 12–15 人日）**：~~① 输出规格面板 ② 版式基础参数 ③ 渲染性能与健壮性~~ → **✅ 2026-11-04 已交付**（见 5.3）。N4/N5/X8 也已在 Sprint A 交付（见 5.4）；下一步按 5.2 顺序：X9 守输入质量 → X1/X2 攻大件。
+3. **先做三件（约 12–15 人日）**：~~① 输出规格面板 ② 版式基础参数 ③ 渲染性能与健壮性~~ → **✅ 2026-11-04 已交付**（见 5.3）。N4/N5/X8 已在 Sprint A 交付（见 5.4），X1/X2 已在 Sprint B 交付（见 5.5）；下一步按 5.2 顺序：X9 守输入质量 → X3/X4/X5。
 4. **不建议现在做**：账号/云存储/模板商城/贴纸文字/AI 修图（见第 6 节非目标）。任何会让图片离开设备的方案都不进入路线图。
 
 ---
@@ -31,16 +31,16 @@
 | 维度 | 现状（代码事实） | 位置 | 对产品的影响 |
 |---|---|---|---|
 | 输入 | 最多 6 张；单张 ≤10 MiB；仅 `image/*`；支持拖拽/选择/粘贴 | `src/lib/imageIntake.js:1-2`、`src/App.jsx:70-78` | "6 张"文案硬编码在 4 处，改上限成本高于预期 |
-| 布局 | `vertical` / `horizontal` / `collage` 三种；collage 固定 2 行（4 张按 2+2，其余按 3+3）；✅ 外边距/图片间距 0–64px、直边圆角 0–32px | `src/lib/stitchLayout.js` | 网格结构仍不可扩展（X2 处理）；间距/边距/圆角已可调 |
-| 图片适配 | ✅ 保持每张图原始尺寸（不放大），按最大宽/高居中留白；横向按高度、纵向按宽度对齐 | `src/lib/stitchLayout.js` | 小图放大问题已修复；裁剪/填充方式仍是 Next 的 X1 |
+| 布局 | ✅ 纵向/横向/自动网格 + **2×2 / 1+2 / 1+3** 固定单元格预设；外边距/间距/圆角可调 | `src/lib/stitchLayout.js` | X2 已交付；网格预设使用直边拼缝 |
+| 图片适配 | ✅ 每图 `contain`/`cover`、90° 旋转、水平/垂直翻转、网格焦点；默认仍不放大 | `src/lib/imageTransform.js`、`src/lib/stitchLayout.js`、`src/lib/stitchRenderer.js` | X1 已交付；焦点在固定网格中生效 |
 | 背景 | ✅ UI 提供透明 / 纸色 / 白 / 墨 / 自定义色；渲染层填充 | `src/lib/stitchRenderer.js`、`src/components/StitchCanvas.*` | 背景可选择；JPEG 自动白底并提示 |
 | 波浪缝 | 正弦曲线 clip + 白/深灰双描边；振幅/波长按画面尺寸自动推导 | `src/lib/stitchLayout.js:3-21`、`src/lib/stitchRenderer.js:140-181` | 品牌识别点，但只有开/关，无样式/幅度/颜色参数 |
 | 渲染 | ✅ 按 `id + 解码预算` 缓存位图；设置变更 160ms 防抖；缓存命中后解码 0ms；PNG 编码仍在主线程 | `src/lib/renderCache.js`、`src/lib/stitchRenderer.js`、`src/components/StitchCanvas.jsx` | 调参不再重解码；PNG 编码 8MP 画布仍需约 300ms（见 5.3 备注） |
 | 输出 | ✅ PNG / JPEG / WebP；质量 30–100%；尺寸预设（安全上限 / 长图模式 / 4096 / 1080 宽 / 自定义）；长图模式最长边 16384px，仍受 2000 万像素约束 | `src/lib/stitchRenderer.js`、`src/components/StitchCanvas.*` | 结果条与实际文件一致；长图模式保住原始宽度（6 张 iPhone 截图 1179×15336 / 18.1MP） |
-| 交互 | ✅ 设置面板（画布/接缝/导出/本机）；会话恢复、撤销/重做、快捷键、长图预览；下载/复制/重试 | `src/components/StitchCanvas.*`、`src/App.jsx`、`src/lib/sessionStore.js`、`src/lib/history.js` | X1 每图控制、X2 布局预设仍待做 |
+| 交互 | ✅ 设置面板、会话恢复、撤销/重做、快捷键、长图预览、每图调整条、网格预设选择；下载/复制/重试 | `src/components/StitchCanvas.*`、`src/components/ImageAdjustments.jsx`、`src/App.jsx`、`src/lib/sessionStore.js`、`src/lib/history.js` | 已覆盖 X1/X2 |
 | 健壮性 | ✅ 全局 ErrorBoundary（重试/重新加载）+ 单次生成重试 + 会话保存 epoch 防竞态 | `src/components/ErrorBoundary.jsx`、`src/main.jsx`、`src/lib/sessionStore.js` | 组件异常不白屏；IDB 保存失败降级 |
 | 可访问性 | 已有 `aria-pressed`、`role="status"/"alert"`、dnd-kit 键盘排序与播报、图片 alt | `src/components/**` | 基础好；缺全流程键盘化、对比度/动效偏好等系统检查 |
-| 测试 | ✅ 48 个 `node --test` 单测 + 21 条 Playwright e2e（桌面/移动，覆盖上传/布局/三种导出/长图/隐私/会话/快捷键）；CI 跑 lint + test + build + e2e | `src/lib/*.test.js`、`e2e/**`、`.github/workflows/ci.yml` | 视觉回归截图仍可加强；e2e 覆盖 X1/X2 待补 |
+| 测试 | ✅ 59 个 `node --test` 单测 + 29 条 Playwright e2e（覆盖上传/布局/导出/长图/隐私/会话/快捷键/每图变换/网格预设/焦点像素）；CI 跑 lint + test + build + e2e | `src/lib/*.test.js`、`e2e/**`、`.github/workflows/ci.yml` | 视觉回归截图仍可加强 |
 | 国际化 | UI 中文硬编码；`index.html` 为 `lang="zh-CN"` | `src/**`、`index.html:2` | README 双语但应用单语 |
 | 分发 | 纯静态构建，支持 `VITE_BASE_PATH` 子路径 | `vite.config.js:6` | 无 manifest/service worker，不可离线、不可安装、无分享入口 |
 | 隐私 | 无任何网络请求（除静态资源）；Canvas 重编码天然剥离 EXIF | 全仓库 | 这是最值钱的资产，但**用户无法自证**（没有可见的"零上传"证明） |
@@ -160,14 +160,14 @@
 | **N4** | ✅ **已交付 2026-11-05** — **会话恢复（IndexedDB）**：保存图片 Blob、顺序、设置；刷新/崩溃后恢复；提供"清除本地数据" | 本地处理没有云端副本，误刷新=全部重来（1.2③）。这是"承诺不上传"后必须补的安全感，也是留存杠杆 | M | 隐私：数据仅本机但同源可读，需 UI 明示；浏览器配额与清理策略；大文件写入失败要降级 | 刷新后 6 张图、顺序、设置完整恢复；清除后 IndexedDB 无记录；隐私说明与清除入口可见；存储失败时不阻塞主流程（降级为内存态） |
 | **N5** | ✅ **已交付 2026-11-05** — **快捷操作**：`Cmd/Ctrl+Z` 撤销、`Shift+Cmd/Ctrl+Z` 重做（排序/删除/设置）、`Delete` 删除、方向键移动、`Cmd/Ctrl+S` 导出；撤销栈 ≥10 步 | 高频用户会反复调顺序与设置；减少鼠标往返，直接支撑"30 秒"目标；当前只有 dnd-kit 的键盘排序 | M（快捷键 S + 撤销栈 M） | 撤销需正确管理 Object URL 生命周期，避免泄漏或提前 revoke；焦点管理需与 dnd-kit 协调 | 全键盘完成上传→排序→调参→导出；撤销/重做 10 步正确；撤销后无 Object URL 泄漏（单测）；不干扰输入框快捷键 |
 
-**排期建议**：Now 五项（N1–N5）与 X8 e2e 已于 2026-11-04/05 交付（Sprint A 见 5.4）。Sprint B 先做 X1/X2：两者共用“每图 transform”数据模型，必须同一人连着做，并先用 e2e 锁定现有行为。
+**排期建议**：Now 五项（N1–N5）、X8 e2e 与 Sprint B（X1/X2）已交付（见 5.4/5.5）。下一轮建议做 X9（输入提示）或 X3（切片/PDF），先补高价值小件，再考虑 PWA/本地脱敏。
 
 ### 4.2 Next（本季度）：补齐"拼图工具"的标准能力，建立桌面/移动闭环
 
 | ID | 能力 | 用户价值 | 工作量 | 风险 · 依赖 | 验收标准 |
 |---|---|---|---|---|---|
-| **X1** | **每图填充与对位**：`contain`（当前默认）/ `cover`（裁切填满）/ 拖动焦点；单图 90° 旋转、水平/垂直翻转、单图重置 | 混排不同尺寸/构图是最大痛点（[PhotoJoiner](https://www.photojoiner.com/features/photo-joiner) 以 "Merge Images Without Cropping" 为卖点、[IMGonline](https://www.imgonline.com.ua/eng/combine-two-images-into-one.php) 给适配与锚点）。目前只能居中留白，且会放大低清图 | L | 需要把 `normalizeImages` 从"全局缩放"重构为"每图 transform（scale/offset/rotation/crop）"；波浪 clip 与旋转的几何组合要重算；预览与导出必须同源 | 任意宽高比混排不变形、不出现意外裁切；单图操作可撤销、可重置；导出与预览逐像素一致（可用回归截图断言） |
-| **X2** | **布局预设扩展**：2×2、1+2、1+3（主图 + 副图）、自动网格（N 张 -> 行列）；保留现有三种基础布局 | 当前 collage 固定 2 行、splitIndex 按 2/3 硬编码（`stitchLayout.js:67-70`），无法表达常见构图；[稿定 80+ 布局](https://www.gaoding.com/pintu) 说明用户对布局有预期 | L | 需要泛化网格求解（行/列/跨格），并保持拖拽排序语义；与 X1 的每图 transform 共用数据模型 | 12+ 预设、4–6 张图均能得到确定性结果；无重叠/空洞；拖拽排序实时反映；新增布局有几何单测（含边界：1 张、6 张） |
+| **X1** | ✅ **已交付 2026-11-05** — **每图填充与对位**：`contain` / `cover`（裁切填满）/ 焦点位置（九宫格）；单图 90° 旋转、水平/垂直翻转、单图重置 | 混排不同尺寸/构图是最大痛点（[PhotoJoiner](https://www.photojoiner.com/features/photo-joiner) 以 "Merge Images Without Cropping" 为卖点、[IMGonline](https://www.imgonline.com.ua/eng/combine-two-images-into-one.php) 给适配与锚点）。目前只能居中留白，且会放大低清图 | L | 需要把 `normalizeImages` 从"全局缩放"重构为"每图 transform（scale/offset/rotation/crop）"；波浪 clip 与旋转的几何组合要重算；预览与导出必须同源 | 任意宽高比混排不变形、不出现意外裁切；单图操作可撤销、可重置；导出与预览逐像素一致（可用回归截图断言） |
+| **X2** | ✅ **已交付 2026-11-05** — **布局预设扩展**：2×2、1+2、1+3（主图 + 副图）、自动网格（N 张 -> 行列）；保留现有三种基础布局 | 当前 collage 固定 2 行、splitIndex 按 2/3 硬编码（`stitchLayout.js:67-70`），无法表达常见构图；[稿定 80+ 布局](https://www.gaoding.com/pintu) 说明用户对布局有预期 | L | 需要泛化网格求解（行/列/跨格），并保持拖拽排序语义；与 X1 的每图 transform 共用数据模型 | 12+ 预设、4–6 张图均能得到确定性结果；无重叠/空洞；拖拽排序实时反映；新增布局有几何单测（含边界：1 张、6 张） |
 | **X3** | **切片导出 / PDF 导出**：长图按最大高度或平台限制切成 N 张，编号命名；可选导出 PDF | 平台对单图高度和体积有限制；[Picsew](https://apps.apple.com/cn/app/picsew-%E6%BB%9A%E5%8A%A8%E6%88%AA%E5%9B%BE-%E9%95%BF%E5%9B%BE%E6%8B%BC%E6%8E%A5/id1208145167) 已把"切成尺寸整齐的多张切片"作为卖点 | M | PDF 需要轻量库，需评估 bundle 体积（隐私与离线不受影响）；切片要处理"不切断文字行"的可选策略 | 8192 高长图切成 2 张后首尾相接无重叠、无丢失；文件命名可排序；PDF 文字清晰（位图渲染）；导出体积/耗时可见 |
 | **X4** | **本地脱敏**：框选区域模糊/马赛克（可多区域、可撤销）；后续可探索自动识别高风险区域（需先验证） | 聊天记录/证件/订单截图是核心场景，分享前必须打码；[Picsew](https://apps.apple.com/cn/app/picsew-%E6%BB%9A%E5%8A%A8%E6%88%AA%E5%9B%BE-%E9%95%BF%E5%9B%BE%E6%8B%BC%E6%8E%A5/id1208145167) 把"模糊或马赛克隐藏姓名、头像、账号、地址"列为核心能力 | M | 必须纯本地；模糊算法要不可逆（不能只在预览层）；框选交互在移动端要可用；不做 OCR 上传 | 导出后脱敏区域无原像素（可用取色/还原测试验证）；支持撤销与清除；不增加网络请求 |
 | **X5** | **PWA：离线可用 + 可安装 + Share Target**：manifest + service worker 缓存静态资源；Chromium 支持从系统分享面板接收图片；iOS 走"添加到主屏幕"降级 | 移动端"截图→分享→拼接→发回"是最自然路径；离线可用强化"本地工具"心智 | M | Share Target 仅 Chromium 实现（[W3C 规范](https://w3c.github.io/web-share-target/)，iOS Safari 不支持，需上线前实测）；SW 缓存策略要防"版本卡住"；与 `VITE_BASE_PATH` 子路径部署兼容 | 断网可打开并完成拼接导出；安装后图标/启动画面正常；Chromium 分享面板出现本应用并可带入图片；升级后旧 SW 不阻塞新版本 |
@@ -176,7 +176,7 @@
 | **X8** | ✅ **已交付 2026-11-05** — **Playwright e2e + CI**：覆盖上传 6 张、排序、三种布局、三种导出、错误路径、IndexedDB 恢复 | 当前 CI 只有 lint/test/build（`.github/workflows/ci.yml`），渲染与内存回归无门禁；e2e 能让重构（X1/X2）敢动 | M | 需在 CI 安装浏览器；视觉改版期间用 role/label 选择器而非 class；测试稳定性要治理 flaky | CI 内 e2e 稳定通过（<5 分钟）；覆盖 6 条关键路径；失败保留 trace/截图 |
 | **X9** | **EXIF/HEIC 处理**：导出后无 GPS/相机元数据的回归测试；HEIC 文件检测与提示（Safari 17+ 可解码，其余浏览器给转换指引） | 隐私承诺需要可验证；HEIC 是 iPhone 默认格式，静默失败会造成"无法读取图片"的困惑（[caniuse: HEIF/HEIC](https://caniuse.com/heif)） | S | 仅在支持端解码（Safari）；不要为 HEIC 引入大体积 wasm 解码器（违背体积/离线预算） | EXIF 测试图导出后无可识别元数据（单测）；Chrome 选 HEIC 时提示明确、可操作；Safari 可正常导入 |
 
-**Next 的顺序建议**：X9（输入提示）→ X1 → X2（Sprint B 主体）→ X3 → X4 → X5 → X6 → X7。X8 已在 Sprint A 完成并接入 CI。理由：先有质量门禁再动核心几何；X1/X2 共用同一数据模型，必须连着做；X5/X6 属于分发与市场，放在能力稳定之后。
+**Next 的顺序建议**：X9（输入提示）→ X3（切片/PDF）→ X4（本地脱敏）→ X5（PWA）→ X6（i18n）→ X7（无障碍）。X8/X1/X2 已完成。理由：先有质量门禁再动核心几何；X1/X2 共用同一数据模型，必须连着做；X5/X6 属于分发与市场，放在能力稳定之后。
 
 ### 4.3 Later（6–12 个月）：押注差异化，而不是堆功能
 
@@ -209,9 +209,9 @@
 | 5 | X9 EXIF/HEIC 提示与验证 | 3 | S | ★★★ | Next | 无 |
 | 6 | ✅ X8 Playwright e2e + CI | 3 | M | ★★☆ | Next | 选择器稳定 |
 | 7 | ✅ N5 快捷操作 + 撤销/重做 | 3 | M | ★★☆ | Now | 撤销栈需覆盖 N2/N4 |
-| 8 | X1 每图填充/对位/旋转 | 5 | L | ★★☆ | Next | N3、几何重构 |
+| 8 | ✅ X1 每图填充/对位/旋转 | 5 | L | ★★☆ | Next | N3、几何重构 |
 | 9 | X3 切片/PDF 导出 | 4 | M | ★★☆ | Next | N1 输出面板 |
-| 10 | X2 布局预设扩展 | 4 | L | ★★☆ | Next | X1 数据模型 |
+| 10 | ✅ X2 布局预设扩展 | 4 | L | ★★☆ | Next | X1 数据模型 |
 | 11 | X4 本地脱敏 | 4 | M | ★★☆ | Next | 无（可提前） |
 | 12 | X5 PWA 离线 + Share Target | 3 | M | ★★☆ | Next | 部署路径 |
 | 13 | X6 国际化 zh/en | 3 | M | ★★☆ | Next | 文案抽取 |
@@ -226,7 +226,7 @@
 
 ### 5.2 推荐顺序（一句话版）
 
-> **已完成：N1→N2→N3→N4→N5→X8。接下来：X9 → X1/X2（Sprint B）→ X3/X4/X5 → 最后押 moonshot（L1–L3）。**
+> **已完成：N1→N2→N3→N4→N5→X8→X1→X2。接下来：X9 → X3/X4/X5 → 最后押 moonshot（L1–L3）。**
 
 ### 5.3 已交付的三件（2026-11-04）
 
@@ -255,7 +255,7 @@
 - **N5 快捷键/撤销**：`history.js` 12 步、滑块 600ms 合并；URL 引用计数回收；e2e 撤销上传/设置、重做、Delete、Ctrl+S。
 - **P1 体验**：长图「适应宽度」可读、设置记忆与「恢复默认设置」（独立历史步，可撤销）。
 - **P2 清零**：缓存改 `id|url` + 预算复用/缩放；缝线按相邻图交集裁剪；`StitchCanvas` 657→463 行，拆出 `StitchSettings`/`StitchStage`/`SettingsFields`。
-- **仍未做**：X1 每图裁剪/对位/旋转、X2 布局预设、X3 切片/PDF、X4 本地脱敏、X5 PWA、X6 i18n、X9 EXIF/HEIC；PNG 编码仍主线程（约 320–350ms），性能二期列为后续。
+- **仍未做**：X3 切片/PDF、X4 本地脱敏、X5 PWA、X6 i18n、X9 EXIF/HEIC；PNG 编码仍主线程（约 320–350ms），性能二期列为后续。
 
 ## 6. 非目标（明确不做）
 
