@@ -21,6 +21,22 @@ PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers npx playwright test e2e/export.spec.js
 | `mobile.spec.js` | Pixel 7: no horizontal overflow, bottom-sheet settings, download reachable |
 | `sprint-a.spec.js` | session restore/clear, undo/redo/Delete/Ctrl+S, preview fit modes, settings memory + reset |
 | `sprint-b.spec.js` | per-image rotate/flip/reset/undo, cover fit, transform persistence, 2×2/1+2/1+3 grid sizes, seam disabled, focus pixel check |
+| `visual.spec.js` | `toHaveScreenshot` baselines of the exported PNG at natural size (default, rotated, 2×2 grid) |
+
+## Visual regression
+
+`visual.spec.js` opens the result blob in a blank tab at its natural
+dimensions and compares it with the baselines in `e2e/__screenshots__/`.
+Screenshots only contain exported pixels, never page chrome or host fonts, so
+the same baseline works on macOS and the Linux CI runner.
+
+```bash
+# refresh baselines after an intentional visual change
+PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers npx playwright test e2e/visual.spec.js --update-snapshots
+```
+
+When a baseline changes unintentionally, review the diff images under
+`test-results/` before updating.
 
 ## Conventions
 
