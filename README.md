@@ -21,6 +21,7 @@ Stitch multiple images into a single long picture, right in your browser — no 
 - **Session restore** — images, order and every setting are stored locally in IndexedDB and restored after a refresh/crash; a settings-sheet button clears the local session.
 - **Shortcuts & undo** — `Cmd/Ctrl+Z`, `Shift+Cmd/Ctrl+Z`, `Cmd/Ctrl+S`, `Delete` for the selected image; slider bursts coalesce into one history step.
 - **Themes** — follows your OS until you pick a side; your choice is remembered, and switching doesn't cascade transitions.
+- **English / Chinese** — follows the browser language by default and can be switched from the header; UI, errors, ARIA labels and page title update instantly, with the preference stored locally.
 - **100% local & private** — images are processed only in the browser Canvas and are never uploaded to any server.
 - **Safety limits** — each file must be under 10 MiB with an aspect ratio of at most 30:1; decode budgets and output pixels are capped (8192 px longest edge by default, 16,384 px in long-image mode, 20 MP overall), and the output is downscaled with a visible note when a cap is hit. Large canvases are capability-probed first so lower-limit devices never export a blank image.
 
@@ -66,6 +67,7 @@ For static hosting platforms, set the build command to `npm run build` and the p
 - `src/lib/imageTransform.js` — per-image rotate/flip/fit/focus normalisation and immutable updates.
 - `src/lib/stitchLayout.js` — geometry and seam calculations for vertical/horizontal/auto-grid/fixed-grid presets.
 - `src/lib/stitchRenderer.js` — Canvas drawing, export specs/limits, encoding and decode cache.
+- `src/i18n/` — zh/en dictionaries, `I18nProvider` and the language switcher.
 - `src/lib/exportSlices.js` — slice ranges/naming and a dependency-free PDF writer.
 - `src/lib/redaction.js` — masking normalisation, mosaic and colour-block baking.
 - `src/lib/sessionStore.js` — local session persistence (IndexedDB).

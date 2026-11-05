@@ -18,6 +18,7 @@
 | **B4 拖拽焦点 + 缩放** | 焦点预览拖动、100–300% 缩放 + 方向键/预设兜底 | 单步撤销；不劫持滚动；触摸/鼠标可用 | ✅ 完成 |
 | **B5 X3 切片/PDF** | 2048/4096/8192 切片、可排序命名、零依赖 PDF | 首尾无丢失；PDF 页数正确；全程本地 | ✅ 完成 |
 | **B6 X4 本地打码** | 框选马赛克/色块、多区域、撤销/清除 | 导出无原像素；触摸可用；无外部请求 | ✅ 完成 |
+| **B7 X6 国际化** | 中英字典、语言切换、`lang`/meta、错误码 | 无刷新切换；刷新保持；英文无残留中文 | ✅ 完成 |
 
 > 真机验证（iPhone Safari 18MP 长图、iPad、Android）由用户另行执行，代码侧已提供 16MP 探测回退与本地诊断。
 
@@ -121,9 +122,16 @@
 - [x] e2e 像素哈希前后变化 + 撤销恢复、色块像素校验；移动端触摸框选
 - 已知取舍：打码区域按输出归一化，布局大改后可能偏移；打码状态不随 IndexedDB 会话保存（刷新清除）
 
-### 后续（X5–X9 / moonshot）
+### B7 X6 国际化 ✅
+- [x] `src/i18n` 轻量字典 + Context；默认跟随浏览器，`localStorage` 记忆，页头中/EN 切换无需刷新
+- [x] 全部组件、ARIA、dnd 播报、错误提示、页面 title/description/`html lang` 走 i18n
+- [x] 纯函数错误改为 `code`，UI 映射翻译；数量上限只来自 `MAX_IMAGE_COUNT`
+- [x] 单测：字典 key/占位符一致、插值、locale 解析；e2e：即时切换/刷新保持/浏览器默认/英文无中文残留/英文错误/移动端无溢出
+- 已知取舍：运行时切换只更新当前页 meta，不做英文 SEO 静态入口
+
+### 后续（X5 / X9 / moonshot）
+- [ ] X7 无障碍完善（下一项）
 - [ ] X5 PWA + 离线 + Share Target
-- [ ] X6 i18n zh/en（6 张硬编码收敛）
 - [ ] X9 EXIF/HEIC 提示与元数据回归
 - [ ] L1 重叠感知长截图合并（spike 3–5 天，成功率 <70% 淘汰）
 - [ ] 性能二期：预览画布 + 按需/Worker 编码（PNG 编码约 320–350ms → 目标调参 <150ms）
@@ -140,7 +148,7 @@
 npm run lint            # ESLint
 npm test                # node --test（当前 59 用例）
 npm run build           # 生产构建
-npm run e2e             # Playwright（当前 44 条；本地需 PLAYWRIGHT_BROWSERS_PATH 或已安装浏览器）
+npm run e2e             # Playwright（当前 49 条；本地需 PLAYWRIGHT_BROWSERS_PATH 或已安装浏览器）
 npm run e2e -- --ui     # 交互调试
 ```
 
@@ -151,10 +159,10 @@ PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers npx playwright install chromium
 PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers npm run e2e
 ```
 
-## 5. Sprint B 交付证据（2026-11-05）
+## 5. Sprint B / X6 交付证据（2026-11-05）
 
-- **单测**：`npm test` → 69/69。新增 `imageTransform.test.js`（归一化/宽高交换/不可变更新）与 `stitchLayout.test.js` 新增 9 条（旋转、cover、2×2 奇偶行、1+2 hero、焦点透传、单元格比例、zoom 透传、1–6 张边界）。
-- **e2e**：`npm run e2e` → 44 passed / 0 failed / 44 skipped（另一 project 条件跳过）。`sprint-b.spec.js` 13 条覆盖旋转/翻转/重置、撤销、混排 cover、会话恢复、2×2、1+2/1+3、焦点像素、拖拽/方向键/缩放/会话恢复；`slices.spec.js` 2 条切片/PDF；`redaction.spec.js` 3 条马赛克/色块打码；`mobile.spec.js` 增加触摸拖拽/打码回归；`visual.spec.js` 3 条按自然尺寸截图回归。
+- **单测**：`npm test` → 71/71。新增 `imageTransform.test.js`（归一化/宽高交换/不可变更新）与 `stitchLayout.test.js` 新增 9 条（旋转、cover、2×2 奇偶行、1+2 hero、焦点透传、单元格比例、zoom 透传、1–6 张边界）。
+- **e2e**：`npm run e2e` → 49 passed / 0 failed / 49 skipped（另一 project 条件跳过）。`sprint-b.spec.js` 13 条覆盖旋转/翻转/重置、撤销、混排 cover、会话恢复、2×2、1+2/1+3、焦点像素、拖拽/方向键/缩放/会话恢复；`slices.spec.js` 2 条切片/PDF；`redaction.spec.js` 3 条马赛克/色块打码；`locale.spec.js` 4 条中英切换/浏览器默认/英文错误/无中文残留；`mobile.spec.js` 增加触摸/英文无溢出回归；`visual.spec.js` 3 条按自然尺寸截图回归。
 - **视觉回归**：`e2e/__screenshots__/` 下 3 张基线（纵向默认、旋转后、2×2 网格）；正常 `npm run e2e` 会对比，变更预期画面时用 `npx playwright test e2e/visual.spec.js --update-snapshots` 更新。
 - **构建**：`npm run lint` 干净；`npm run build` 干净。
 - **已知不足**：拖拽期间主结果只在释放后更新；缩放目前只在固定网格的「填满」模式生效；单元格比例按预设近似（忽略 gap）；网格预设使用直边拼缝；1+2/1+3 对任意张数的复杂跨格可继续打磨；打码为本地会话状态，不持久化。

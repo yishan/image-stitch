@@ -7,6 +7,7 @@
 > 事实来源分三类，文中分别标注：**代码事实**（本仓库 `src/**`，可复核）、**竞品页面宣称**（2026-11-04 抓取，链接见附录）、**推断**（基于前两者的判断，非引述）。
 >
 > 变更记录：
+> - 2026-11-05：X6 中英国际化交付（默认跟随浏览器、无刷新切换、`lang`/meta/错误码同步），证据见 5.9。
 > - 2026-11-05：X3 切片/PDF 与 X4 本地打码交付，证据见 5.7/5.8。
 > - 2026-11-05：B4 拖拽焦点 + 缩放交付（单元格比例预览、100–300% 缩放、单步撤销、触摸不劫持滚动），证据见 5.6。
 > - 2026-11-05：Sprint A 交付（Playwright e2e/CI、会话恢复 N4、快捷键/撤销 N5、长图预览、设置记忆/重置、缓存与缝线 P2 清零），证据见 5.4；Sprint B 交付（X1 每图旋转/翻转/填充/焦点、X2 网格预设），证据见 5.5。
@@ -19,7 +20,7 @@
 
 1. **产品不缺功能，缺“闭环”**：~~原来只能拼成一张 PNG、尺寸/体积不可控、超长图被缩到 1/2 宽~~ → **已交付**：PNG/JPEG/WebP + 质量 + 尺寸预设 + 长图模式，结果条显示格式/px/体积/降采样标注；外边距、间距、背景、圆角、接缝强度也已有 UI。下一个缺口是「每图裁剪对位」与「布局预设」。
 2. **护城河是“本地 + 长图”**：竞品要么上传服务器（[IMGonline 明确保留 2 小时](https://www.imgonline.com.ua/eng/sitemap.php)），要么走模板/设计工具路线（[稿定 80+ 布局](https://www.gaoding.com/pintu)、[PhotoJoiner](https://www.photojoiner.com/features/collage-maker)）。我们应把"长截图/聊天记录拼接"做成唯一差异点，而不是变成又一个拼图编辑器。
-3. **先做三件（约 12–15 人日）**：~~① 输出规格面板 ② 版式基础参数 ③ 渲染性能与健壮性~~ → **✅ 2026-11-04 已交付**（见 5.3）。N4/N5/X8 已在 Sprint A 交付（见 5.4），X1/X2 已在 Sprint B 交付（见 5.5）；下一步按 5.2 顺序：X9 守输入质量 → X5/X6/X7。
+3. **先做三件（约 12–15 人日）**：~~① 输出规格面板 ② 版式基础参数 ③ 渲染性能与健壮性~~ → **✅ 2026-11-04 已交付**（见 5.3）。N4/N5/X8 已在 Sprint A 交付（见 5.4），X1/X2 已在 Sprint B 交付（见 5.5）；下一步：X7 无障碍 → X5 PWA → X9 EXIF/HEIC。
 4. **不建议现在做**：账号/云存储/模板商城/贴纸文字/AI 修图（见第 6 节非目标）。任何会让图片离开设备的方案都不进入路线图。
 
 ---
@@ -42,8 +43,8 @@
 | 交互 | ✅ 设置面板、会话恢复、撤销/重做、快捷键、长图预览、每图调整条、网格预设选择；下载/复制/重试 | `src/components/StitchCanvas.*`、`src/components/ImageAdjustments.jsx`、`src/App.jsx`、`src/lib/sessionStore.js`、`src/lib/history.js` | 已覆盖 X1/X2 |
 | 健壮性 | ✅ 全局 ErrorBoundary（重试/重新加载）+ 单次生成重试 + 会话保存 epoch 防竞态 | `src/components/ErrorBoundary.jsx`、`src/main.jsx`、`src/lib/sessionStore.js` | 组件异常不白屏；IDB 保存失败降级 |
 | 可访问性 | 已有 `aria-pressed`、`role="status"/"alert"`、dnd-kit 键盘排序与播报、图片 alt | `src/components/**` | 基础好；缺全流程键盘化、对比度/动效偏好等系统检查 |
-| 测试 | ✅ 69 个 `node --test` 单测 + 44 条 Playwright e2e（覆盖上传/布局/导出/长图/隐私/会话/快捷键/每图变换/网格预设/焦点像素）；CI 跑 lint + test + build + e2e | `src/lib/*.test.js`、`e2e/**`、`.github/workflows/ci.yml` | 视觉回归已覆盖导出结果 |
-| 国际化 | UI 中文硬编码；`index.html` 为 `lang="zh-CN"` | `src/**`、`index.html:2` | README 双语但应用单语 |
+| 测试 | ✅ 71 个 `node --test` 单测 + 49 条 Playwright e2e（覆盖上传/布局/导出/长图/隐私/会话/快捷键/每图变换/网格预设/焦点像素/国际化）；CI 跑 lint + test + build + e2e | `src/lib/*.test.js`、`e2e/**`、`.github/workflows/ci.yml` | 视觉回归已覆盖导出结果 |
+| 国际化 | ✅ 中英字典 + Context；默认跟随浏览器，`lang`/title/meta 同步；页头切换 | `src/i18n/**`、`src/App.jsx`、`index.html` | 运行时切换，不做英文 SEO 静态入口 |
 | 分发 | 纯静态构建，支持 `VITE_BASE_PATH` 子路径 | `vite.config.js:6` | 无 manifest/service worker，不可离线、不可安装、无分享入口 |
 | 隐私 | 无任何网络请求（除静态资源）；Canvas 重编码天然剥离 EXIF | 全仓库 | 这是最值钱的资产，但**用户无法自证**（没有可见的"零上传"证明） |
 
@@ -173,12 +174,12 @@
 | **X3** | ✅ **已交付 2026-11-05** — **切片导出 / PDF 导出**：长图按最大高度或平台限制切成 N 张，编号命名；可选导出 PDF | 平台对单图高度和体积有限制；[Picsew](https://apps.apple.com/cn/app/picsew-%E6%BB%9A%E5%8A%A8%E6%88%AA%E5%9B%BE-%E9%95%BF%E5%9B%BE%E6%8B%BC%E6%8E%A5/id1208145167) 已把"切成尺寸整齐的多张切片"作为卖点 | M | PDF 需要轻量库，需评估 bundle 体积（隐私与离线不受影响）；切片要处理"不切断文字行"的可选策略 | 8192 高长图切成 2 张后首尾相接无重叠、无丢失；文件命名可排序；PDF 文字清晰（位图渲染）；导出体积/耗时可见 |
 | **X4** | ✅ **已交付 2026-11-05** — **本地打码**：框选区域马赛克/色块（可多区域、可撤销）；后续可探索自动识别高风险区域（需先验证） | 聊天记录/证件/订单截图是核心场景，分享前必须打码；[Picsew](https://apps.apple.com/cn/app/picsew-%E6%BB%9A%E5%8A%A8%E6%88%AA%E5%9B%BE-%E9%95%BF%E5%9B%BE%E6%8B%BC%E6%8E%A5/id1208145167) 把"模糊或马赛克隐藏姓名、头像、账号、地址"列为核心能力 | M | 必须纯本地；模糊算法要不可逆（不能只在预览层）；框选交互在移动端要可用；不做 OCR 上传 | 导出后打码区域无原像素（可用取色/还原测试验证）；支持撤销与清除；不增加网络请求 |
 | **X5** | **PWA：离线可用 + 可安装 + Share Target**：manifest + service worker 缓存静态资源；Chromium 支持从系统分享面板接收图片；iOS 走"添加到主屏幕"降级 | 移动端"截图→分享→拼接→发回"是最自然路径；离线可用强化"本地工具"心智 | M | Share Target 仅 Chromium 实现（[W3C 规范](https://w3c.github.io/web-share-target/)，iOS Safari 不支持，需上线前实测）；SW 缓存策略要防"版本卡住"；与 `VITE_BASE_PATH` 子路径部署兼容 | 断网可打开并完成拼接导出；安装后图标/启动画面正常；Chromium 分享面板出现本应用并可带入图片；升级后旧 SW 不阻塞新版本 |
-| **X6** | **国际化 zh/en**：文案集中管理、语言切换（默认跟随浏览器）、`html lang` 同步、把 4 处"6 张"硬编码收敛为常量/i18n key | README 已双语，但应用单语；英文用户是可扩展市场；顺带清理硬编码文案 | M | 避免引入过重依赖（可用轻量字典 + Context）；数字/复数/日期格式；与视觉改版并行时文案 key 需一次性抽干净 | 中英切换无需刷新；无遗漏硬编码（ESLint 自定义规则或脚本扫描）；`document.documentElement.lang` 正确；数量上限文案只出现在一处数据源 |
+| **X6** | ✅ **已交付 2026-11-05** — **国际化 zh/en**：文案集中管理、语言切换（默认跟随浏览器）、`html lang` 同步、把 4 处"6 张"硬编码收敛为常量/i18n key | README 已双语，但应用单语；英文用户是可扩展市场；顺带清理硬编码文案 | M | 避免引入过重依赖（可用轻量字典 + Context）；数字/复数/日期格式；与视觉改版并行时文案 key 需一次性抽干净 | 中英切换无需刷新；无遗漏硬编码（ESLint 自定义规则或脚本扫描）；`document.documentElement.lang` 正确；数量上限文案只出现在一处数据源 |
 | **X7** | **无障碍完善**：焦点可见、对比度、`prefers-reduced-motion`、生成状态 `aria-live`、dnd 播报补全、错误可聚焦 | 已有基础不错（`aria-pressed`/`role`/键盘排序），但键盘全流程与读屏体验仍有缺口；也是质量信号 | S/M | 与视觉改版强相关，只提语义与交互要求，不指定视觉；需真实读屏抽查 | axe 扫描 0 critical；纯键盘完成全流程；`prefers-reduced-motion` 下无强制动画；Lighthouse a11y ≥95 |
 | **X8** | ✅ **已交付 2026-11-05** — **Playwright e2e + CI**：覆盖上传 6 张、排序、三种布局、三种导出、错误路径、IndexedDB 恢复 | 当前 CI 只有 lint/test/build（`.github/workflows/ci.yml`），渲染与内存回归无门禁；e2e 能让重构（X1/X2）敢动 | M | 需在 CI 安装浏览器；视觉改版期间用 role/label 选择器而非 class；测试稳定性要治理 flaky | CI 内 e2e 稳定通过（<5 分钟）；覆盖 6 条关键路径；失败保留 trace/截图 |
 | **X9** | **EXIF/HEIC 处理**：导出后无 GPS/相机元数据的回归测试；HEIC 文件检测与提示（Safari 17+ 可解码，其余浏览器给转换指引） | 隐私承诺需要可验证；HEIC 是 iPhone 默认格式，静默失败会造成"无法读取图片"的困惑（[caniuse: HEIF/HEIC](https://caniuse.com/heif)） | S | 仅在支持端解码（Safari）；不要为 HEIC 引入大体积 wasm 解码器（违背体积/离线预算） | EXIF 测试图导出后无可识别元数据（单测）；Chrome 选 HEIC 时提示明确、可操作；Safari 可正常导入 |
 
-**Next 的顺序建议**：X9（输入提示）→ X5（PWA）→ X6（i18n）→ X7（无障碍）。X8/X1/X2/X3/X4 已完成。理由：先有质量门禁再动核心几何；X1/X2 共用同一数据模型，必须连着做；X5/X6 属于分发与市场，放在能力稳定之后。
+**Next 的顺序建议**：X7（无障碍）→ X5（PWA）→ X9（EXIF/HEIC）。X8/X1/X2/X3/X4/X6 已完成。理由：先有质量门禁再动核心几何；X1/X2 共用同一数据模型，必须连着做；X5/X6 属于分发与市场，放在能力稳定之后。
 
 ### 4.3 Later（6–12 个月）：押注差异化，而不是堆功能
 
@@ -216,7 +217,7 @@
 | 10 | ✅ X2 布局预设扩展 | 4 | L | ★★☆ | Next | X1 数据模型 |
 | 11 | ✅ X4 本地打码 | 4 | M | ★★☆ | Next | 无（可提前） |
 | 12 | X5 PWA 离线 + Share Target | 3 | M | ★★☆ | Next | 部署路径 |
-| 13 | X6 国际化 zh/en | 3 | M | ★★☆ | Next | 文案抽取 |
+| 13 | ✅ X6 国际化 zh/en | 3 | M | ★★☆ | Next | 文案抽取 |
 | 14 | X7 无障碍完善 | 3 | S/M | ★★☆ | Next | 视觉改版协同 |
 | 15 | L1 重叠感知合并 | 5 | L | ★★☆ | Later | 长图模式 + 裁剪 + e2e |
 | 16 | L3 自动去状态栏/尾部 | 4 | M/L | ★★☆ | Later | L1 匹配内核 |
@@ -228,7 +229,7 @@
 
 ### 5.2 推荐顺序（一句话版）
 
-> **已完成：N1→N2→N3→N4→N5→X8→X1→X2→X3→X4。接下来：X9 → X5/X6/X7 → 最后押 moonshot（L1–L3）。**
+> **已完成：N1→N2→N3→N4→N5→X8→X1→X2→X3→X4→X6。接下来：X7 → X5 → X9 → 最后押 moonshot（L1–L3）。**
 
 ### 5.3 已交付的三件（2026-11-04）
 
@@ -257,7 +258,7 @@
 - **N5 快捷键/撤销**：`history.js` 12 步、滑块 600ms 合并；URL 引用计数回收；e2e 撤销上传/设置、重做、Delete、Ctrl+S。
 - **P1 体验**：长图「适应宽度」可读、设置记忆与「恢复默认设置」（独立历史步，可撤销）。
 - **P2 清零**：缓存改 `id|url` + 预算复用/缩放；缝线按相邻图交集裁剪；`StitchCanvas` 657→463 行，拆出 `StitchSettings`/`StitchStage`/`SettingsFields`。
-- **仍未做**：X5 PWA、X6 i18n、X9 EXIF/HEIC；PNG 编码仍主线程（约 320–350ms），性能二期列为后续。
+- **仍未做**：X5 PWA、X7 无障碍、X9 EXIF/HEIC；PNG 编码仍主线程（约 320–350ms），性能二期列为后续。
 
 ### 5.5 Sprint B 交付（2026-11-05）
 
@@ -288,6 +289,14 @@
 - 测试：单测归一化/最小区域/颜色回退；e2e 像素哈希前后变化、撤销恢复、色块像素校验、移动端触摸框选。
 - 已知取舍：打码区域按输出归一化，布局大改后可能偏移；打码状态不持久化到 IndexedDB。
 
+### 5.9 X6 中英国际化交付（2026-11-05）
+
+- 新增 `src/i18n`：zh/en 嵌套字典、`translate.js` 纯函数、`I18nProvider`/`useI18n`；默认跟随 `navigator.languages`，`localStorage.locale` 记忆，页头 中/EN 无刷新切换。
+- 全 UI 文案、ARIA、dnd 播报、错误提示、`document.lang`、title/description/OG 全部走 i18n；英文界面无残留中文。
+- 纯函数错误改为带 `code` 的错误，由 UI 映射翻译；数量上限只来自 `MAX_IMAGE_COUNT`，不再复制“6 张”文案。
+- 测试：单测 69 → 71（字典 key/占位符一致、插值、locale 解析）；e2e 44 → 49（即时切换/刷新保持/浏览器默认/英文错误/英文无中文/移动端无溢出）。
+- 已知取舍：运行时切换只更新当前页 meta，不做英文 SEO 静态入口；英文长文案已做 390/1440 溢出回归。
+
 ## 6. 非目标（明确不做）
 
 | 非目标 | 为什么不做 | 例外条件 |
@@ -313,7 +322,7 @@
 | **EXIF / HEIC** | 浏览器解码自动应用 EXIF 方向；Canvas 重编码剥离元数据；HEIC 仅 Safari 17+ 可解 | 增加导出元数据回归测试；检测 HEIC 并给出明确提示；不引入大体积解码库 | [caniuse: HEIF/HEIC](https://caniuse.com/heif)（Chrome/Edge 不支持）；库体积预算 | S |
 | **大图内存策略** | 已有分层像素预算（1800 万像素总预算按张数均分）、`createImageBitmap` 高质量缩放、位图 `close()`、Object URL revoke | 复用解码结果（N3）；必要时 Worker + OffscreenCanvas 分块绘制；单次导出只保留一张输出位图 | [caniuse: OffscreenCanvas](https://caniuse.com/offscreencanvas)（Safari 17+ 完整）；Worker 与主线程状态同步；40MP 以上场景需分块方案 | M/L |
 | **PWA / 离线 / 分享目标** | 无 manifest、无 service worker | manifest + 预缓存静态资源；安装提示；Chromium `share_target` 接图片；iOS 降级为"添加到主屏幕 + 手动选图" | [W3C Web Share Target](https://w3c.github.io/web-share-target/) 仅 Chromium；SW 版本管理；与 `VITE_BASE_PATH` 兼容 | M |
-| **国际化** | 中文硬编码；`lang="zh-CN"`；"6 张"分散 4 处 | 轻量字典 + Context（或评估 react-i18next）；`html lang` 同步；语言偏好本地持久化 | 文案抽取一次到位；与视觉改版并行的文案冲突 | M |
+| **国际化** | ✅ 中英字典 + Context；`lang`/meta 同步；语言偏好本地持久化 | 英文 SEO 静态入口（后续） | 文案抽取一次到位 | S/M |
 | **e2e 测试** | 仅 `node --test` 纯函数单测；CI 无浏览器 | Playwright：上传/排序/布局/导出/错误/恢复；用 role/label 选择器；CI 缓存浏览器 | CI 时长与 flaky；视觉改版期间选择器稳定性 | M |
 | **可访问性** | 有 `aria-pressed`、`role=status/alert`、dnd-kit 键盘排序与播报 | axe 自动检查 + 键盘全流程 + 读屏抽查 + reduced-motion；语义化新控件 | 与视觉改版协同；不指定视觉 token | S/M |
 | **错误边界与恢复** | 仅生成函数内 try/catch；无全局边界 | 每个主面板一个边界；错误可复制/重试；本地记录错误摘要（不自动上传） | React 19 错误边界写法；错误摘要的隐私边界 | S |
@@ -448,7 +457,7 @@
 | **新增依赖膨胀** | PDF、HEIC、i18n 都可能引入包 | 体积预算门禁；PDF/HEIC 按需动态加载；优先手写轻量实现 |
 | **长图内存** | 20MP Canvas 在低端机/ Safari 上可能分配失败 | N3 的预算提示 + 长图模式可回退；导出失败给出可操作建议（降尺寸/切片） |
 | **6 张上限的竞争压力** | 竞品宣称 20/30/300 张，用户可能质疑 | 用"6 张内的质量与速度"回应；L4 仅作为有条件的实验，不作为卖点承诺 |
-| **文案与技术债** | "6 张"硬编码 4 处、UI 全中文 | N2/X6 一并收敛到常量与文案表；改上限只改一处 |
+| **文案与技术债** | ✅ 数量上限已收敛到 `MAX_IMAGE_COUNT`，UI 已有 zh/en 字典 | 后续新增文案必须走 `t()`；英文长文案需继续做布局回归 |
 
 ---
 
