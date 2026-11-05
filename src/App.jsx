@@ -20,6 +20,7 @@ import {
   undoHistory
 } from './lib/history';
 import { DEFAULT_SETTINGS } from './lib/stitchSettings';
+import { ensureImageTransforms, normalizeTransform, withImageTransform } from './lib/imageTransform';
 import { isEditableTarget } from './lib/keyboard';
 import {
   clearSession,
@@ -80,6 +81,10 @@ const PrivacyIcon = () => (
   </svg>
 );
 
+const imagesSignature = (images) => images
+  .map((image) => `${image.id}:${JSON.stringify(normalizeTransform(image.transform))}`)
+  .join('|');
+
 const restoreImageFile = (record) => {
   const file = new File([record.blob], record.name, {
     type: record.type,
@@ -88,7 +93,8 @@ const restoreImageFile = (record) => {
   return {
     id: record.id,
     file,
-    url: URL.createObjectURL(file)
+    url: URL.createObjectURL(file),
+    transform: record.transform
   };
 };
 
@@ -162,7 +168,7 @@ function App() {
 
       imagesRef.current = restoredImages;
       settingsRef.current = restoredSettings;
-      savedImagesSignatureRef.current = restoredImages.map((image) => image.id).join('|');
+      savedImagesSignatureRef.current = imagesSignature(restoredImages);
       savedSettingsSignatureRef.current = JSON.stringify(restoredSettings);
       setHistory(resetHistory({ images: restoredImages, settings: restoredSettings }));
       setSessionStatus('saved');
@@ -202,7 +208,7 @@ function App() {
   // Persist images and settings separately, each with its own debounce.
   useEffect(() => {
     if (!sessionReady || suppressSaveRef.current) return undefined;
-    const signature = images.map((image) => image.id).join('|');
+    const signature = imagesSignature(images);
     if (signature === savedImagesSignatureRef.current) return undefined;
     const epoch = sessionEpochRef.current;
 
@@ -273,7 +279,7 @@ function App() {
     result.addedImages.forEach((image) => urlsRef.current.add(image.url));
 
     if (result.addedImages.length > 0) {
-      commit({ images: result.images, settings: settingsRef.current });
+      commit({ images: ensureImageTransforms(result.images), settings: settingsRef.current });
     }
 
     const messages = [];
@@ -326,6 +332,11 @@ function App() {
       settings: DEFAULT_SETTINGS
     }));
   }, []);
+
+  const handleUpdateTransform = useCallback((id, patch) => {
+    const nextImages = withImageTransform(imagesRef.current, id, patch);
+    commit({ images: nextImages, settings: settingsRef.current });
+  }, [commit]);
 
   const handleClearSession = useCallback(async () => {
     suppressSaveRef.current = true;
@@ -418,8 +429,10 @@ function App() {
               images={images}
               max={MAX_IMAGE_COUNT}
               direction={settings.direction}
+              gridPreset={settings.gridPreset || 'auto'}
               selectedId={activeSelectedId}
               onSelectImage={setSelectedId}
+              onUpdateTransform={handleUpdateTransform}
               onRemoveImage={handleRemoveImage}
               onDragEnd={handleDragEnd}
               onReset={handleReset}

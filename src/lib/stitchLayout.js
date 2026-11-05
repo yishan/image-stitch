@@ -1,3 +1,5 @@
+import { getRotatedDimensions, normalizeTransform } from './imageTransform.js';
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 export const SEAM_STRENGTH_FACTORS = {
@@ -10,6 +12,13 @@ export const SEAM_STRENGTHS = [
     ['fine', '细'],
     ['regular', '标准'],
     ['bold', '粗']
+];
+
+export const GRID_PRESETS = [
+    ['auto', '自动网格'],
+    ['2x2', '2×2 网格'],
+    ['1+2', '1 + 2'],
+    ['1+3', '1 + 3']
 ];
 
 export const getWaveOffset = (pos, from, amplitude, wavelength) => (
@@ -51,9 +60,138 @@ const maxOf = (items, key) => (
     items.length === 0 ? 0 : Math.max(...items.map((item) => item[key]))
 );
 
+const normalizeItems = (loadedImages) => loadedImages.map((entry) => {
+    const image = entry.image || entry.img || entry;
+    const transform = normalizeTransform(entry.transform);
+    const rotated = getRotatedDimensions(image.width, image.height, transform.rotate);
+
+    return {
+        image,
+        transform,
+        width: rotated.width,
+        height: rotated.height
+    };
+});
+
+const fitDimensions = (item, cellWidth) => {
+    if (item.transform.fit === 'cover') {
+        return {
+            width: cellWidth,
+            height: item.height * (cellWidth / item.width)
+        };
+    }
+
+    return { width: item.width, height: item.height };
+};
+
+const fitDimensionsHorizontal = (item, cellHeight) => {
+    if (item.transform.fit === 'cover') {
+        return {
+            width: item.width * (cellHeight / item.height),
+            height: cellHeight
+        };
+    }
+
+    return { width: item.width, height: item.height };
+};
+
+const placementOf = (item, rect) => ({
+    img: item.image,
+    x: rect.x,
+    y: rect.y,
+    width: rect.width,
+    height: rect.height,
+    transform: item.transform,
+    fit: item.transform.fit
+});
+
 /**
- * Geometry for the three layouts. Images keep their original size (never
- * upscaled); the stitched canvas grows around them with optional gap/margin.
+ * Fixed-cell grid presets. Unlike the three free-flow layouts these use a
+ * deterministic grid, so `contain` letterboxes inside a cell and `cover`
+ * crops around the per-image focus point.
+ */
+const createGridPlan = (items, { preset, gap, margin }) => {
+    const placements = [];
+    const baseCell = Math.max(1, maxOf(items, 'width'));
+    const contentWidth = baseCell * 2 + gap;
+    const totalWidth = contentWidth + margin * 2;
+    let contentHeight = 0;
+
+    if (preset === '2x2') {
+        const columns = 2;
+        const rowHeight = baseCell;
+        const rows = Math.ceil(items.length / columns);
+
+        items.forEach((item, index) => {
+            const rowIndex = Math.floor(index / columns);
+            const rowItems = items.slice(rowIndex * columns, rowIndex * columns + columns);
+            const cellWidth = rowItems.length === 1
+                ? contentWidth
+                : (contentWidth - gap) / columns;
+            const x = margin + (index % columns) * (cellWidth + gap);
+            const y = margin + rowIndex * (rowHeight + gap);
+            placements.push(placementOf(item, { x, y, width: cellWidth, height: rowHeight }));
+        });
+        contentHeight = rows * rowHeight + gap * Math.max(0, rows - 1);
+    } else {
+        const columns = preset === '1+2' ? 2 : 3;
+        const heroHeight = Math.max(1, Math.round(contentWidth * 0.6));
+        const rest = items.slice(1);
+        const rowGroups = [];
+        for (let index = 0; index < rest.length; index += columns) {
+            rowGroups.push(rest.slice(index, index + columns));
+        }
+        const rowHeights = rowGroups.map((row) => {
+            const cellWidth = (contentWidth - gap * (row.length - 1)) / row.length;
+            return Math.max(1, Math.round(cellWidth * 0.75));
+        });
+
+        let rowY = margin + heroHeight + gap;
+        rowGroups.forEach((row, rowIndex) => {
+            const cellWidth = (contentWidth - gap * (row.length - 1)) / row.length;
+            row.forEach((item, index) => {
+                const x = margin + index * (cellWidth + gap);
+                placements.push(placementOf(item, {
+                    x,
+                    y: rowY,
+                    width: cellWidth,
+                    height: rowHeights[rowIndex]
+                }));
+            });
+            rowY += rowHeights[rowIndex] + gap;
+        });
+
+        const heroItem = items[0];
+        if (heroItem) {
+            placements.unshift(placementOf(heroItem, {
+                x: margin,
+                y: margin,
+                width: contentWidth,
+                height: heroHeight
+            }));
+        }
+        const restHeight = rowGroups.length > 0
+            ? rowHeights.reduce((sum, height) => sum + height, 0) + gap * (rowGroups.length - 1)
+            : 0;
+        contentHeight = heroHeight + (rest.length > 0 ? gap + restHeight : 0);
+    }
+
+    return {
+        totalWidth,
+        totalHeight: contentHeight + margin * 2,
+        placements,
+        seamShadows: [],
+        gap,
+        margin,
+        direct: true,
+        preset
+    };
+};
+
+/**
+ * Geometry for the layouts. Free-flow layouts (vertical/horizontal/collage)
+ * keep natural image sizes and only upscale when a per-image `cover` fit asks
+ * for it; grid presets use fixed cells and support crop + focus.
  */
 export const createStitchPlan = (loadedImages, settings = {}) => {
     if (!loadedImages || loadedImages.length === 0) {
@@ -72,17 +210,19 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
     const gap = clamp(Number(settings.gap) || 0, 0, 256);
     const margin = clamp(Number(settings.margin) || 0, 0, 256);
     const strength = SEAM_STRENGTH_FACTORS[settings.seamStrength] || 1;
+    const gridPreset = settings.gridPreset || 'auto';
     const placements = [];
     const seamShadows = [];
-    const images = loadedImages.map((img) => ({
-        img,
-        width: img.width,
-        height: img.height
-    }));
+    const images = normalizeItems(loadedImages);
+
+    if (direction === 'collage' && gridPreset !== 'auto') {
+        return createGridPlan(images, { preset: gridPreset, gap, margin });
+    }
 
     if (direction === 'horizontal') {
         const maxHeight = maxOf(images, 'height');
-        const totalWidth = sumWidths(images, gap) + margin * 2;
+        const fitted = images.map((item) => fitDimensionsHorizontal(item, maxHeight));
+        const totalWidth = fitted.reduce((sum, item) => sum + item.width, 0) + gap * (images.length - 1) + margin * 2;
         const totalHeight = maxHeight + margin * 2;
         const baseMetrics = getRippleMetrics(totalWidth, totalHeight);
         const amplitude = baseMetrics.amplitude * strength;
@@ -90,15 +230,17 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
 
         let cursorX = margin;
         images.forEach((item, index) => {
-            const y = margin + (maxHeight - item.height) / 2;
-            const next = images[index + 1];
+            const draw = fitted[index];
+            const y = margin + (maxHeight - draw.height) / 2;
+            const next = fitted[index + 1];
             const nextY = next ? margin + (maxHeight - next.height) / 2 : 0;
+
             const leftEdge = showWave && index > 0
                 ? createEdge({
                     orientation: 'vertical',
                     x: cursorX,
                     from: y,
-                    to: y + item.height,
+                    to: y + draw.height,
                     phase: margin,
                     amplitude,
                     wavelength
@@ -107,9 +249,9 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
             const rightEdge = showWave && index < images.length - 1
                 ? createEdge({
                     orientation: 'vertical',
-                    x: cursorX + item.width,
+                    x: cursorX + draw.width,
                     from: Math.max(y, nextY),
-                    to: Math.min(y + item.height, nextY + next.height),
+                    to: Math.min(y + draw.height, nextY + next.height),
                     phase: margin,
                     amplitude,
                     wavelength
@@ -119,16 +261,17 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
             if (rightEdge && rightEdge.to > rightEdge.from) seamShadows.push(rightEdge);
 
             placements.push({
-                img: item.img,
-                x: cursorX,
-                y,
-                width: item.width,
-                height: item.height,
+                ...placementOf(item, {
+                    x: cursorX,
+                    y,
+                    width: draw.width,
+                    height: draw.height
+                }),
                 leftEdge,
                 rightEdge
             });
 
-            cursorX += item.width + gap;
+            cursorX += draw.width + gap;
         });
 
         return { totalWidth, totalHeight, placements, seamShadows, gap, margin };
@@ -214,11 +357,12 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
                 if (leftEdge) seamShadows.push(leftEdge);
 
                 placements.push({
-                    img: item.img,
-                    x,
-                    y,
-                    width: item.width,
-                    height: item.height,
+                    ...placementOf(item, {
+                        x,
+                        y,
+                        width: item.width,
+                        height: item.height
+                    }),
                     topEdge,
                     rightEdge,
                     bottomEdge,
@@ -254,26 +398,28 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
 
     // Vertical (default)
     const maxWidth = maxOf(images, 'width');
+    const fitted = images.map((item) => fitDimensions(item, maxWidth));
     const totalWidth = maxWidth + margin * 2;
-    const totalHeight = images.reduce((sum, item) => sum + item.height, 0) + gap * (images.length - 1) + margin * 2;
+    const totalHeight = fitted.reduce((sum, item) => sum + item.height, 0) + gap * (images.length - 1) + margin * 2;
     const baseMetrics = getRippleMetrics(totalWidth, totalHeight);
     const amplitude = baseMetrics.amplitude * strength;
     const { wavelength } = baseMetrics;
 
     let cursorY = margin;
     images.forEach((item, index) => {
-        const x = margin + (maxWidth - item.width) / 2;
+        const draw = fitted[index];
+        const x = margin + (maxWidth - draw.width) / 2;
         const y = cursorY;
         // Shared phase origin across the whole seam so mixed-width images
         // still meet on one continuous wave.
-        const next = images[index + 1];
+        const next = fitted[index + 1];
         const nextX = next ? margin + (maxWidth - next.width) / 2 : 0;
         const topEdge = showWave && index > 0
             ? createEdge({
                 orientation: 'horizontal',
                 y,
                 from: x,
-                to: x + item.width,
+                to: x + draw.width,
                 phase: margin,
                 amplitude,
                 wavelength
@@ -282,9 +428,9 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
         const bottomEdge = showWave && index < images.length - 1
             ? createEdge({
                 orientation: 'horizontal',
-                y: y + item.height,
+                y: y + draw.height,
                 from: Math.max(x, nextX),
-                to: Math.min(x + item.width, nextX + next.width),
+                to: Math.min(x + draw.width, nextX + next.width),
                 phase: margin,
                 amplitude,
                 wavelength
@@ -294,16 +440,17 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
         if (bottomEdge && bottomEdge.to > bottomEdge.from) seamShadows.push(bottomEdge);
 
         placements.push({
-            img: item.img,
-            x,
-            y,
-            width: item.width,
-            height: item.height,
+            ...placementOf(item, {
+                x,
+                y,
+                width: draw.width,
+                height: draw.height
+            }),
             topEdge,
             bottomEdge
         });
 
-        cursorY += item.height + gap;
+        cursorY += draw.height + gap;
     });
 
     return { totalWidth, totalHeight, placements, seamShadows, gap, margin };

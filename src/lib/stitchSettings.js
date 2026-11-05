@@ -5,6 +5,7 @@ export const SEAM_STRENGTH_IDS = ['fine', 'regular', 'bold'];
 export const EXPORT_FORMAT_IDS = ['png', 'jpeg', 'webp'];
 export const SIZE_MODE_IDS = ['auto', 'long', 'edge4096', 'width1080', 'custom'];
 export const PREVIEW_MODES = ['fit', 'width'];
+export const GRID_PRESET_IDS = ['auto', '2x2', '1+2', '1+3'];
 
 export const isCustomHex = (value) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value || '');
 
@@ -17,6 +18,7 @@ export const DEFAULT_SETTINGS = {
     radius: 0,
     seamStrength: 'regular',
     previewMode: 'fit',
+    gridPreset: 'auto',
     export: { ...DEFAULT_EXPORT_SETTINGS }
 };
 
@@ -44,6 +46,7 @@ export const sanitizeSettings = (candidate) => {
         radius: clampNumber(source.radius, 0, 32, DEFAULT_SETTINGS.radius),
         seamStrength: pick(source.seamStrength, SEAM_STRENGTH_IDS, DEFAULT_SETTINGS.seamStrength),
         previewMode: pick(source.previewMode, PREVIEW_MODES, DEFAULT_SETTINGS.previewMode),
+        gridPreset: pick(source.gridPreset, GRID_PRESET_IDS, DEFAULT_SETTINGS.gridPreset),
         export: {
             ...DEFAULT_EXPORT_SETTINGS,
             format: pick(exportSource.format, EXPORT_FORMAT_IDS, DEFAULT_EXPORT_SETTINGS.format),

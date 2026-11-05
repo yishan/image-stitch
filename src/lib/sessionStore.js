@@ -1,4 +1,5 @@
 import { sanitizeSettings } from './stitchSettings.js';
+import { normalizeTransform } from './imageTransform.js';
 
 const DB_NAME = 'image-stitch-session';
 const DB_VERSION = 1;
@@ -65,7 +66,8 @@ export const normalizeStoredImages = (records) => {
             name: typeof record.name === 'string' ? record.name : `image-${index + 1}.png`,
             type: typeof record.type === 'string' ? record.type : 'image/png',
             lastModified: Number(record.lastModified) || Date.now(),
-            blob: record.blob
+            blob: record.blob,
+            transform: normalizeTransform(record.transform)
         }));
 };
 
@@ -82,7 +84,8 @@ export const saveSessionImages = async (images) => {
                     name: image.file?.name || `image-${index + 1}.png`,
                     type: image.file?.type || 'image/png',
                     lastModified: image.file?.lastModified || Date.now(),
-                    blob: image.file
+                    blob: image.file,
+                    transform: normalizeTransform(image.transform)
                 });
             });
             await transactionDone(transaction);

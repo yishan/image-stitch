@@ -190,3 +190,116 @@ test('collage mode draws each shared seam shadow only once', async () => {
 
     assert.equal(plan.seamShadows.length, 5);
 });
+
+test('rotation swaps the placement dimensions', async () => {
+    const { createStitchPlan } = await loadLayoutModule();
+    const plan = createStitchPlan([
+        { width: 500, height: 1600, transform: { rotate: 90 } }
+    ], { direction: 'vertical', showWave: false });
+
+    assert.equal(plan.totalWidth, 1600);
+    assert.equal(plan.totalHeight, 500);
+    assert.deepEqual(
+        { width: plan.placements[0].width, height: plan.placements[0].height, rotate: plan.placements[0].transform.rotate },
+        { width: 1600, height: 500, rotate: 90 }
+    );
+});
+
+test('cover fits each image to the cross axis and may upscale', async () => {
+    const { createStitchPlan } = await loadLayoutModule();
+    const plan = createStitchPlan([
+        { width: 500, height: 1000 },
+        { width: 300, height: 600, transform: { fit: 'cover' } }
+    ], { direction: 'vertical', showWave: false });
+
+    assert.equal(plan.totalWidth, 500);
+    assert.equal(plan.placements[0].width, 500);
+    assert.equal(plan.placements[1].width, 500);
+    assert.equal(plan.placements[1].height, 1000);
+    assert.equal(plan.totalHeight, 2000);
+});
+
+test('cover in horizontal layouts fills the common height', async () => {
+    const { createStitchPlan } = await loadLayoutModule();
+    const plan = createStitchPlan([
+        { width: 600, height: 300, transform: { fit: 'cover' } },
+        { width: 900, height: 200 }
+    ], { direction: 'horizontal', showWave: false });
+
+    assert.equal(plan.totalHeight, 300);
+    assert.equal(plan.placements[0].height, 300);
+    assert.equal(plan.placements[1].height, 200);
+    assert.equal(plan.placements[0].width, 600);
+});
+
+test('2×2 grid produces deterministic cells including an odd last row', async () => {
+    const { createStitchPlan } = await loadLayoutModule();
+    const images = Array.from({ length: 3 }, () => ({ width: 500, height: 1600 }));
+    const plan = createStitchPlan(images, {
+        direction: 'collage',
+        gridPreset: '2x2',
+        gap: 16,
+        margin: 24,
+        showWave: true
+    });
+
+    assert.equal(plan.direct, true);
+    assert.equal(plan.seamShadows.length, 0);
+    assert.equal(plan.totalWidth, 1016 + 48);
+    assert.equal(plan.totalHeight, 2 * 500 + 16 + 48);
+    assert.deepEqual(plan.placements.map(({ x, y, width, height }) => ({ x, y, width, height })), [
+        { x: 24, y: 24, width: 500, height: 500 },
+        { x: 540, y: 24, width: 500, height: 500 },
+        { x: 24, y: 540, width: 1016, height: 500 }
+    ]);
+});
+
+test('1+2 hero grid lays a hero row above two cells', async () => {
+    const { createStitchPlan } = await loadLayoutModule();
+    const images = Array.from({ length: 3 }, () => ({ width: 500, height: 1600 }));
+    const plan = createStitchPlan(images, {
+        direction: 'collage',
+        gridPreset: '1+2',
+        gap: 16,
+        margin: 0,
+        showWave: true
+    });
+
+    assert.equal(plan.direct, true);
+    assert.deepEqual(plan.placements.map(({ width, height }) => ({ width, height })), [
+        { width: 1016, height: 610 },
+        { width: 500, height: 375 },
+        { width: 500, height: 375 }
+    ]);
+    assert.equal(plan.totalHeight, 610 + 16 + 375);
+});
+
+test('grid presets keep fit and focus on each placement', async () => {
+    const { createStitchPlan } = await loadLayoutModule();
+    const plan = createStitchPlan([{
+        width: 500,
+        height: 1600,
+        transform: { fit: 'cover', focusX: 0, focusY: 1 }
+    }], { direction: 'collage', gridPreset: '2x2' });
+
+    assert.equal(plan.placements[0].fit, 'cover');
+    assert.equal(plan.placements[0].transform.focusX, 0);
+    assert.equal(plan.placements[0].transform.focusY, 1);
+});
+
+test('grid presets never overlap or leave gaps in the row flow', async () => {
+    const { createStitchPlan } = await loadLayoutModule();
+    for (const count of [1, 2, 3, 4, 5, 6]) {
+        const images = Array.from({ length: count }, () => ({ width: 500, height: 1600 }));
+        for (const gridPreset of ['2x2', '1+2', '1+3']) {
+            const plan = createStitchPlan(images, { direction: 'collage', gridPreset, gap: 16, margin: 10 });
+            const area = plan.placements.reduce((sum, placement) => sum + placement.width * placement.height, 0);
+            assert.ok(area > 0);
+            plan.placements.forEach((placement) => {
+                assert.ok(placement.x >= 10 && placement.y >= 10);
+                assert.ok(placement.x + placement.width <= plan.totalWidth - 10 + 0.001);
+                assert.ok(placement.y + placement.height <= plan.totalHeight - 10 + 0.001);
+            });
+        }
+    }
+});

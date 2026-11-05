@@ -1,4 +1,6 @@
 import { useCallback, useState } from 'react';
+import { normalizeTransform } from '../lib/imageTransform.js';
+import ImageAdjustments from './ImageAdjustments.jsx';
 import {
     DndContext,
     closestCenter,
@@ -50,6 +52,10 @@ const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensio
         zIndex: isDragging ? 2 : 'auto',
     };
     const imageName = image.file?.name || `图片 ${index + 1}`;
+    const imageTransform = normalizeTransform(image.transform);
+    const previewStyle = {
+        transform: `rotate(${imageTransform.rotate}deg) scaleX(${imageTransform.flipX ? -1 : 1}) scaleY(${imageTransform.flipY ? -1 : 1})`
+    };
 
     return (
         <li
@@ -67,6 +73,7 @@ const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensio
                 <img
                     src={image.url}
                     alt={`第 ${index + 1} 张图片：${imageName}`}
+                    style={previewStyle}
                     onLoad={(event) => onDimensions(image.id, {
                         width: event.currentTarget.naturalWidth,
                         height: event.currentTarget.naturalHeight
@@ -112,7 +119,7 @@ const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensio
     );
 };
 
-const ImagePreview = ({ images, max = 6, direction = 'vertical', selectedId = null, onSelectImage, onRemoveImage, onDragEnd, onReset }) => {
+const ImagePreview = ({ images, max = 6, direction = 'vertical', gridPreset = 'auto', selectedId = null, onSelectImage, onUpdateTransform, onRemoveImage, onDragEnd, onReset }) => {
     const [dimensions, setDimensions] = useState({});
     const handleDimensions = useCallback((id, size) => {
         setDimensions((previous) => {
@@ -128,6 +135,9 @@ const ImagePreview = ({ images, max = 6, direction = 'vertical', selectedId = nu
     const smallerCount = maxCrossSize > 0
         ? images.filter((image) => dimensions[image.id] && dimensions[image.id][crossAxis] < maxCrossSize).length
         : 0;
+
+    const selectedIndex = images.findIndex((image) => image.id === selectedId);
+    const selectedImage = selectedIndex >= 0 ? images[selectedIndex] : null;
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -169,7 +179,6 @@ const ImagePreview = ({ images, max = 6, direction = 'vertical', selectedId = nu
                     {smallerCount} 张图片分辨率偏小，将保持原始尺寸居中（不放大）
                 </p>
             )}
-
             <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -196,6 +205,16 @@ const ImagePreview = ({ images, max = 6, direction = 'vertical', selectedId = nu
                     </ul>
                 </SortableContext>
             </DndContext>
+
+            {selectedImage && (
+                <ImageAdjustments
+                    image={selectedImage}
+                    index={selectedIndex}
+                    direction={direction}
+                    gridPreset={gridPreset}
+                    onUpdateTransform={onUpdateTransform}
+                />
+            )}
         </section>
     );
 };

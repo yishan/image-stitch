@@ -348,11 +348,18 @@ export const loadImagesForRender = async (imageRecords, limits = DEFAULT_SOURCE_
     const normalizedLimits = { ...DEFAULT_SOURCE_LIMITS, ...(limits || {}) };
     const maxPixelsPerImage = Math.max(1, Math.floor(normalizedLimits.maxTotalPixels / imageRecords.length));
 
-    return Promise.all(imageRecords.map((record) => renderCache.get(
+    const images = await Promise.all(imageRecords.map((record) => renderCache.get(
         cacheKeyFor(record),
         maxPixelsPerImage,
         (budget) => decodeRenderableImage(record, normalizedLimits, budget)
     )));
+
+    return imageRecords.map((record, index) => ({
+        image: images[index],
+        width: images[index].width,
+        height: images[index].height,
+        transform: record.transform
+    }));
 };
 
 export const pruneRenderCache = (imageRecords) => {
@@ -465,23 +472,65 @@ const createImageClipPath = (ctx, placement) => {
     ctx.closePath();
 };
 
+const drawPlacementImage = (ctx, placement, grow = 0) => {
+    const image = placement.img;
+    const transform = placement.transform || {};
+    const rotate = Number(transform.rotate) || 0;
+    const flipX = Boolean(transform.flipX);
+    const flipY = Boolean(transform.flipY);
+    const fit = grow > 0 ? 'cover' : (transform.fit === 'cover' ? 'cover' : 'contain');
+    const useFocus = fit === 'cover' && grow === 0;
+    const focusX = useFocus && Number.isFinite(transform.focusX) ? transform.focusX : 0.5;
+    const focusY = useFocus && Number.isFinite(transform.focusY) ? transform.focusY : 0.5;
+    const rotatedWidth = rotate % 180 === 0 ? image.width : image.height;
+    const rotatedHeight = rotate % 180 === 0 ? image.height : image.width;
+
+    const rectX = placement.x - grow;
+    const rectY = placement.y - grow;
+    const rectWidth = placement.width + grow * 2;
+    const rectHeight = placement.height + grow * 2;
+
+    const scale = fit === 'cover'
+        ? Math.max(rectWidth / rotatedWidth, rectHeight / rotatedHeight)
+        : Math.min(1, rectWidth / rotatedWidth, rectHeight / rotatedHeight);
+    const scaledWidth = rotatedWidth * scale;
+    const scaledHeight = rotatedHeight * scale;
+    // Focus slides the cropped image inside the cell: 0 = left/top edge,
+    // 0.5 = centred, 1 = right/bottom edge. When the image is not cropped
+    // the offsets cancel out.
+    const offsetX = (rectWidth - scaledWidth) * focusX;
+    const offsetY = (rectHeight - scaledHeight) * focusY;
+
+    ctx.save();
+    ctx.translate(
+        rectX + offsetX + scaledWidth / 2,
+        rectY + offsetY + scaledHeight / 2
+    );
+    ctx.rotate((rotate * Math.PI) / 180);
+    ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+    ctx.drawImage(
+        image,
+        -(image.width * scale) / 2,
+        -(image.height * scale) / 2,
+        image.width * scale,
+        image.height * scale
+    );
+    ctx.restore();
+};
+
 const drawRippleStitchedImages = (ctx, placements) => {
     placements.forEach((placement) => {
-        const leftOverlap = placement.leftEdge?.amplitude ?? 0;
-        const rightOverlap = placement.rightEdge?.amplitude ?? 0;
-        const topOverlap = placement.topEdge?.amplitude ?? 0;
-        const bottomOverlap = placement.bottomEdge?.amplitude ?? 0;
+        const overlap = Math.max(
+            placement.leftEdge?.amplitude ?? 0,
+            placement.rightEdge?.amplitude ?? 0,
+            placement.topEdge?.amplitude ?? 0,
+            placement.bottomEdge?.amplitude ?? 0
+        );
 
         ctx.save();
         createImageClipPath(ctx, placement);
         ctx.clip();
-        ctx.drawImage(
-            placement.img,
-            placement.x - leftOverlap,
-            placement.y - topOverlap,
-            placement.width + leftOverlap + rightOverlap,
-            placement.height + topOverlap + bottomOverlap
-        );
+        drawPlacementImage(ctx, placement, overlap);
         ctx.restore();
     });
 };
@@ -508,11 +557,11 @@ const drawDirectStitchedImages = (ctx, placements, radius = 0) => {
             ctx.save();
             traceRoundedRect(ctx, placement.x, placement.y, placement.width, placement.height, radius);
             ctx.clip();
-            ctx.drawImage(placement.img, placement.x, placement.y, placement.width, placement.height);
+            drawPlacementImage(ctx, placement);
             ctx.restore();
             return;
         }
-        ctx.drawImage(placement.img, placement.x, placement.y, placement.width, placement.height);
+        drawPlacementImage(ctx, placement);
     });
 };
 
@@ -545,7 +594,7 @@ export const renderStitch = (canvas, loadedImages, settings = {}, options = {}) 
         ctx.fillRect(0, 0, plan.totalWidth, plan.totalHeight);
     }
 
-    if (settings.showWave === false) {
+    if (plan.direct || settings.showWave === false) {
         const radius = clampRadius(settings.radius);
         drawDirectStitchedImages(ctx, plan.placements, radius);
     } else {
