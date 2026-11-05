@@ -1,13 +1,17 @@
 import { DEFAULT_TRANSFORM, FOCUS_POSITIONS, normalizeTransform } from '../lib/imageTransform.js';
+import { getGridCellAspect } from '../lib/stitchLayout.js';
+import FocusEditor from './FocusEditor.jsx';
 
-const ImageAdjustments = ({ image, index, direction, gridPreset, onUpdateTransform }) => {
+const ImageAdjustments = ({ image, index, count, direction, gridPreset, onUpdateTransform }) => {
     if (!image) return null;
 
     const transform = normalizeTransform(image.transform);
     const focusEnabled = direction === 'collage' && gridPreset !== 'auto';
-    const focusValue = FOCUS_POSITIONS.find(([, x, y]) => (
+    const focusPreset = FOCUS_POSITIONS.find(([, x, y]) => (
         Math.abs(x - transform.focusX) < 0.01 && Math.abs(y - transform.focusY) < 0.01
-    ))?.[0] || '居中';
+    ));
+    const focusValue = focusPreset?.[0] || 'custom';
+    const cellAspect = getGridCellAspect(gridPreset, index, count);
 
     return (
         <div className="adjustments" role="group" aria-label={`调整第 ${index + 1} 张图片`}>
@@ -74,21 +78,30 @@ const ImageAdjustments = ({ image, index, direction, gridPreset, onUpdateTransfo
             </div>
 
             {transform.fit === 'cover' && focusEnabled && (
-                <label className="adjustments__focus">
-                    <span className="adjustments__label">焦点</span>
-                    <select
-                        aria-label="焦点位置"
-                        value={focusValue}
-                        onChange={(event) => {
-                            const position = FOCUS_POSITIONS.find(([name]) => name === event.target.value);
-                            if (position) onUpdateTransform(image.id, { focusX: position[1], focusY: position[2] });
-                        }}
-                    >
-                        {FOCUS_POSITIONS.map(([name]) => (
-                            <option key={name} value={name}>{name}</option>
-                        ))}
-                    </select>
-                </label>
+                <div className="adjustments__focus-block">
+                    <FocusEditor
+                        image={image}
+                        index={index}
+                        cellAspect={cellAspect}
+                        onChange={onUpdateTransform}
+                    />
+                    <label className="adjustments__focus">
+                        <span className="adjustments__label">预设</span>
+                        <select
+                            aria-label="焦点位置"
+                            value={focusValue}
+                            onChange={(event) => {
+                                const position = FOCUS_POSITIONS.find(([name]) => name === event.target.value);
+                                if (position) onUpdateTransform(image.id, { focusX: position[1], focusY: position[2] });
+                            }}
+                        >
+                            {!focusPreset && <option value="custom" disabled>自定义</option>}
+                            {FOCUS_POSITIONS.map(([name]) => (
+                                <option key={name} value={name}>{name}</option>
+                            ))}
+                        </select>
+                    </label>
+                </div>
             )}
 
             {transform.fit === 'cover' && !focusEnabled && (

@@ -4,8 +4,12 @@ export const DEFAULT_TRANSFORM = Object.freeze({
     flipY: false,
     fit: 'contain',
     focusX: 0.5,
-    focusY: 0.5
+    focusY: 0.5,
+    zoom: 1
 });
+
+export const MIN_ZOOM = 1;
+export const MAX_ZOOM = 3;
 
 export const FIT_MODES = ['contain', 'cover'];
 export const ROTATIONS = [0, 90, 180, 270];
@@ -28,6 +32,12 @@ const clamp01 = (value, fallback = 0.5) => {
     return Math.min(1, Math.max(0, numeric));
 };
 
+const clampZoom = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 1;
+    return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, numeric));
+};
+
 export const normalizeTransform = (value) => {
     const source = value && typeof value === 'object' ? value : {};
 
@@ -37,7 +47,8 @@ export const normalizeTransform = (value) => {
         flipY: Boolean(source.flipY),
         fit: FIT_MODES.includes(source.fit) ? source.fit : 'contain',
         focusX: clamp01(source.focusX),
-        focusY: clamp01(source.focusY)
+        focusY: clamp01(source.focusY),
+        zoom: clampZoom(source.zoom)
     };
 };
 

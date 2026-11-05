@@ -206,14 +206,21 @@ const ImagePreview = ({ images, max = 6, direction = 'vertical', gridPreset = 'a
                 </SortableContext>
             </DndContext>
 
-            {selectedImage && (
+            {selectedImage ? (
                 <ImageAdjustments
+                    key={selectedImage.id}
                     image={selectedImage}
                     index={selectedIndex}
+                    count={images.length}
                     direction={direction}
                     gridPreset={gridPreset}
                     onUpdateTransform={onUpdateTransform}
                 />
+            ) : (
+                <div className="adjustments adjustments--hint">
+                    <span className="mono">提示</span>
+                    <span>点选一张缩略图，可旋转、翻转、切换填充或拖动焦点。</span>
+                </div>
             )}
         </section>
     );

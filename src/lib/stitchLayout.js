@@ -21,6 +21,32 @@ export const GRID_PRESETS = [
     ['1+3', '1 + 3']
 ];
 
+/**
+ * Approximate aspect ratio of the fixed cell an image is placed in. Used by
+ * the focus editor preview; gap/margin are intentionally ignored because they
+ * only shift the crop by a pixel or two. Returns 1 for free-flow layouts.
+ */
+export const getGridCellAspect = (preset, index, count) => {
+    if (!['2x2', '1+2', '1+3'].includes(preset)) return 1;
+    if (!Number.isInteger(index) || !Number.isInteger(count) || index < 0 || index >= count) return 1;
+
+    if (preset === '2x2') {
+        const rowStart = Math.floor(index / 2) * 2;
+        const rowCount = Math.min(2, count - rowStart);
+        return rowCount === 1 ? 2 : 1;
+    }
+
+    if (index === 0) return 2 / 0.6;
+
+    const columns = preset === '1+2' ? 2 : 3;
+    const restIndex = index - 1;
+    const restCount = count - 1;
+    const rowStart = Math.floor(restIndex / columns) * columns;
+    const rowCount = Math.min(columns, restCount - rowStart);
+    const cellWidth = 2 / rowCount;
+    return cellWidth / (cellWidth * 0.75);
+};
+
 export const getWaveOffset = (pos, from, amplitude, wavelength) => (
     Math.sin(((pos - from) / wavelength) * Math.PI * 2) * amplitude
 );
@@ -95,15 +121,18 @@ const fitDimensionsHorizontal = (item, cellHeight) => {
     return { width: item.width, height: item.height };
 };
 
-const placementOf = (item, rect) => ({
+const placementOf = (item, rect, { zoomable = false } = {}) => ({
     img: item.image,
     x: rect.x,
     y: rect.y,
     width: rect.width,
     height: rect.height,
     transform: item.transform,
-    fit: item.transform.fit
+    fit: item.transform.fit,
+    zoom: zoomable ? item.transform.zoom : 1
 });
+
+const gridPlacementOf = (item, rect) => placementOf(item, rect, { zoomable: true });
 
 /**
  * Fixed-cell grid presets. Unlike the three free-flow layouts these use a
@@ -130,7 +159,7 @@ const createGridPlan = (items, { preset, gap, margin }) => {
                 : (contentWidth - gap) / columns;
             const x = margin + (index % columns) * (cellWidth + gap);
             const y = margin + rowIndex * (rowHeight + gap);
-            placements.push(placementOf(item, { x, y, width: cellWidth, height: rowHeight }));
+            placements.push(gridPlacementOf(item, { x, y, width: cellWidth, height: rowHeight }));
         });
         contentHeight = rows * rowHeight + gap * Math.max(0, rows - 1);
     } else {
@@ -151,7 +180,7 @@ const createGridPlan = (items, { preset, gap, margin }) => {
             const cellWidth = (contentWidth - gap * (row.length - 1)) / row.length;
             row.forEach((item, index) => {
                 const x = margin + index * (cellWidth + gap);
-                placements.push(placementOf(item, {
+                placements.push(gridPlacementOf(item, {
                     x,
                     y: rowY,
                     width: cellWidth,
@@ -163,7 +192,7 @@ const createGridPlan = (items, { preset, gap, margin }) => {
 
         const heroItem = items[0];
         if (heroItem) {
-            placements.unshift(placementOf(heroItem, {
+            placements.unshift(gridPlacementOf(heroItem, {
                 x: margin,
                 y: margin,
                 width: contentWidth,

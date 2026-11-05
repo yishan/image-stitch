@@ -54,3 +54,10 @@ test('ensureImageTransforms adds defaults without replacing existing ones', () =
     assert.deepEqual(images[0].transform, DEFAULT_TRANSFORM);
     assert.equal(images[1], existing);
 });
+
+test('zoom defaults to 1 and clamps to the supported range', () => {
+    assert.equal(normalizeTransform(undefined).zoom, 1);
+    assert.equal(normalizeTransform({ zoom: 0.25 }).zoom, 1);
+    assert.equal(normalizeTransform({ zoom: 2.5 }).zoom, 2.5);
+    assert.equal(normalizeTransform({ zoom: 9 }).zoom, 3);
+});

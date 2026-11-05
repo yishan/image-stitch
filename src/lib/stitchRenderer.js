@@ -1,5 +1,6 @@
 import { createStitchPlan, getSeamStrokeMetrics, getWaveOffset } from './stitchLayout.js';
 import { createRenderCache } from './renderCache.js';
+import { drawTransformedImage } from './imageDraw.js';
 
 export const DEFAULT_OUTPUT_LIMITS = {
     maxEdge: 8192,
@@ -473,49 +474,23 @@ const createImageClipPath = (ctx, placement) => {
 };
 
 const drawPlacementImage = (ctx, placement, grow = 0) => {
-    const image = placement.img;
-    const transform = placement.transform || {};
-    const rotate = Number(transform.rotate) || 0;
-    const flipX = Boolean(transform.flipX);
-    const flipY = Boolean(transform.flipY);
-    const fit = grow > 0 ? 'cover' : (transform.fit === 'cover' ? 'cover' : 'contain');
-    const useFocus = fit === 'cover' && grow === 0;
-    const focusX = useFocus && Number.isFinite(transform.focusX) ? transform.focusX : 0.5;
-    const focusY = useFocus && Number.isFinite(transform.focusY) ? transform.focusY : 0.5;
-    const rotatedWidth = rotate % 180 === 0 ? image.width : image.height;
-    const rotatedHeight = rotate % 180 === 0 ? image.height : image.width;
-
-    const rectX = placement.x - grow;
-    const rectY = placement.y - grow;
-    const rectWidth = placement.width + grow * 2;
-    const rectHeight = placement.height + grow * 2;
-
-    const scale = fit === 'cover'
-        ? Math.max(rectWidth / rotatedWidth, rectHeight / rotatedHeight)
-        : Math.min(1, rectWidth / rotatedWidth, rectHeight / rotatedHeight);
-    const scaledWidth = rotatedWidth * scale;
-    const scaledHeight = rotatedHeight * scale;
-    // Focus slides the cropped image inside the cell: 0 = left/top edge,
-    // 0.5 = centred, 1 = right/bottom edge. When the image is not cropped
-    // the offsets cancel out.
-    const offsetX = (rectWidth - scaledWidth) * focusX;
-    const offsetY = (rectHeight - scaledHeight) * focusY;
-
-    ctx.save();
-    ctx.translate(
-        rectX + offsetX + scaledWidth / 2,
-        rectY + offsetY + scaledHeight / 2
+    drawTransformedImage(
+        ctx,
+        placement.img,
+        placement.transform,
+        {
+            x: placement.x - grow,
+            y: placement.y - grow,
+            width: placement.width + grow * 2,
+            height: placement.height + grow * 2
+        },
+        {
+            fit: grow > 0 ? 'cover' : (placement.fit || placement.transform?.fit),
+            focusX: grow > 0 ? 0.5 : undefined,
+            focusY: grow > 0 ? 0.5 : undefined,
+            zoom: grow > 0 ? 1 : placement.zoom
+        }
     );
-    ctx.rotate((rotate * Math.PI) / 180);
-    ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-    ctx.drawImage(
-        image,
-        -(image.width * scale) / 2,
-        -(image.height * scale) / 2,
-        image.width * scale,
-        image.height * scale
-    );
-    ctx.restore();
 };
 
 const drawRippleStitchedImages = (ctx, placements) => {

@@ -303,3 +303,26 @@ test('grid presets never overlap or leave gaps in the row flow', async () => {
         }
     }
 });
+
+test('grid cell aspect matches the fixed-cell plans', async () => {
+    const { getGridCellAspect } = await loadLayoutModule();
+
+    assert.equal(getGridCellAspect('2x2', 0, 4), 1);
+    assert.equal(getGridCellAspect('2x2', 1, 4), 1);
+    assert.equal(getGridCellAspect('2x2', 2, 3), 2);
+    assert.equal(getGridCellAspect('1+2', 0, 3).toFixed(3), (2 / 0.6).toFixed(3));
+    assert.equal(getGridCellAspect('1+2', 1, 3).toFixed(3), (1 / 0.75).toFixed(3));
+    assert.equal(getGridCellAspect('1+3', 1, 4).toFixed(3), ((2 / 3) / 0.5).toFixed(3));
+    assert.equal(getGridCellAspect('auto', 0, 4), 1);
+});
+
+test('only fixed grid placements carry a zoom value', async () => {
+    const { createStitchPlan } = await loadLayoutModule();
+    const zoomed = { width: 500, height: 1600, transform: { zoom: 2, fit: 'cover' } };
+
+    const grid = createStitchPlan([zoomed], { direction: 'collage', gridPreset: '2x2' });
+    assert.equal(grid.placements[0].zoom, 2);
+
+    const vertical = createStitchPlan([zoomed], { direction: 'vertical' });
+    assert.equal(vertical.placements[0].zoom, 1);
+});

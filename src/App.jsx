@@ -333,9 +333,12 @@ function App() {
     }));
   }, []);
 
-  const handleUpdateTransform = useCallback((id, patch) => {
+  const handleUpdateTransform = useCallback((id, patch, options = {}) => {
     const nextImages = withImageTransform(imagesRef.current, id, patch);
-    commit({ images: nextImages, settings: settingsRef.current });
+    commit(
+      { images: nextImages, settings: settingsRef.current },
+      { coalesceKey: options.coalesceKey }
+    );
   }, [commit]);
 
   const handleClearSession = useCallback(async () => {
