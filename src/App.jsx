@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
+import { Analytics } from '@vercel/analytics/react';
 import './App.css';
 import ImageUploader from './components/ImageUploader';
 import ImagePreview from './components/ImagePreview';
@@ -428,8 +429,10 @@ function App() {
   const isFull = images.length >= MAX_IMAGE_COUNT;
 
   return (
-    <div className="app-shell">
-      <aside className="rail" aria-labelledby="app-title">
+    <>
+      <Analytics />
+      <div className="app-shell">
+        <aside className="rail" aria-labelledby="app-title">
         <header className="rail-header">
           <div className="brand">
             <BrandMark />
@@ -512,7 +515,8 @@ function App() {
           )}
         </p>
       </footer>
-    </div>
+      </div>
+    </>
   );
 }
 
