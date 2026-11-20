@@ -55,4 +55,30 @@ test.describe('设置面板', () => {
     const file = await downloadAndRead(page, '下载 PNG');
     expect(pngSize(file.bytes)).toEqual({ width: 548, height: 4880 });
   });
+
+  test('撤销自定义长边后同步输入框，未更改时失焦不会覆盖撤销', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 2);
+    await expectResultSize(page, 500, 3200);
+    await openSettings(page);
+    await page.getByLabel('尺寸', { exact: true }).selectOption('custom');
+
+    const edge = page.getByRole('spinbutton', { name: '自定义长边' });
+    await expect(edge).toHaveValue('4096');
+    await edge.fill('2048');
+    await edge.blur();
+    await expectResultSize(page, 320, 2048);
+
+    await page.keyboard.press('Control+z');
+    await expectResultSize(page, 500, 3200);
+    await expect(edge).toHaveValue('4096');
+
+    await edge.focus();
+    await edge.blur();
+    await expectResultSize(page, 500, 3200);
+
+    await page.keyboard.press('Control+Shift+z');
+    await expectResultSize(page, 320, 2048);
+    await expect(edge).toHaveValue('2048');
+  });
 });
