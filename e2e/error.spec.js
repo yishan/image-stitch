@@ -23,6 +23,11 @@ test.describe('错误路径', () => {
     await expect(outputMeta(page)).toContainText('—');
     await expect(page.locator('img.result-image')).toHaveCount(0);
 
+    await page.getByRole('button', { name: 'English', exact: true }).click();
+    await expect(alert).toContainText(/aspect ratio/i);
+    await page.getByRole('button', { name: '中文', exact: true }).click();
+    await expect(alert).toContainText('宽高比');
+
     // Retry re-runs the render and surfaces the same deterministic error.
     await alert.getByRole('button', { name: '重试' }).click();
     await expect(page.getByRole('alert')).toContainText('宽高比', { timeout: 20_000 });
