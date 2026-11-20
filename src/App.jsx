@@ -346,14 +346,14 @@ function App() {
     commit({ images: nextImages, settings: settingsRef.current });
   }, [commit]);
 
-  const handleSettingsChange = useCallback((updater) => {
+  const handleSettingsChange = useCallback((updater, options = {}) => {
     markSaving();
     setHistory((previous) => {
       const nextSettings = updater(previous.present.settings);
       return pushHistory(
         previous,
         { images: previous.present.images, settings: nextSettings },
-        { coalesceKey: 'settings' }
+        options
       );
     });
   }, [markSaving]);

@@ -245,15 +245,15 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
         };
     }, [settings, sourceImages]);
 
-    const updateSettings = useCallback((patch) => {
-        onSettingsChange((previous) => ({ ...previous, ...patch }));
+    const updateSettings = useCallback((patch, options) => {
+        onSettingsChange((previous) => ({ ...previous, ...patch }), options);
     }, [onSettingsChange]);
 
-    const updateExport = useCallback((patch) => {
+    const updateExport = useCallback((patch, options) => {
         onSettingsChange((previous) => ({
             ...previous,
             export: { ...DEFAULT_EXPORT_SETTINGS, ...previous.export, ...patch }
-        }));
+        }), options);
     }, [onSettingsChange]);
 
     const resetSettings = useCallback(() => {
