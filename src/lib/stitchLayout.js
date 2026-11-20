@@ -36,7 +36,7 @@ export const getGridCellAspect = (preset, index, count) => {
         return rowCount === 1 ? 2 : 1;
     }
 
-    if (index === 0) return 2 / 0.6;
+    if (index === 0) return 1 / 0.6;
 
     const columns = preset === '1+2' ? 2 : 3;
     const restIndex = index - 1;

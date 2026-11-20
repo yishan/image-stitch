@@ -310,10 +310,27 @@ test('grid cell aspect matches the fixed-cell plans', async () => {
     assert.equal(getGridCellAspect('2x2', 0, 4), 1);
     assert.equal(getGridCellAspect('2x2', 1, 4), 1);
     assert.equal(getGridCellAspect('2x2', 2, 3), 2);
-    assert.equal(getGridCellAspect('1+2', 0, 3).toFixed(3), (2 / 0.6).toFixed(3));
+    assert.equal(getGridCellAspect('1+2', 0, 3).toFixed(3), (1 / 0.6).toFixed(3));
     assert.equal(getGridCellAspect('1+2', 1, 3).toFixed(3), (1 / 0.75).toFixed(3));
     assert.equal(getGridCellAspect('1+3', 1, 4).toFixed(3), ((2 / 3) / 0.5).toFixed(3));
     assert.equal(getGridCellAspect('auto', 0, 4), 1);
+});
+
+test('grid cell aspect equals every placement aspect when gap and margin are zero', async () => {
+    const { createStitchPlan, getGridCellAspect } = await loadLayoutModule();
+    for (const count of [1, 2, 3, 4, 5, 6]) {
+        const images = Array.from({ length: count }, () => ({ width: 1000, height: 1600 }));
+        for (const gridPreset of ['2x2', '1+2', '1+3']) {
+            const plan = createStitchPlan(images, { direction: 'collage', gridPreset, gap: 0, margin: 0 });
+            plan.placements.forEach((placement, index) => {
+                assert.equal(
+                    getGridCellAspect(gridPreset, index, count).toFixed(3),
+                    (placement.width / placement.height).toFixed(3),
+                    `${gridPreset} image ${index + 1} of ${count}`
+                );
+            });
+        }
+    }
 });
 
 test('only fixed grid placements carry a zoom value', async () => {

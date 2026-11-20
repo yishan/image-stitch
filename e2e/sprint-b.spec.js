@@ -237,6 +237,20 @@ test.describe('Sprint B · 拖拽焦点', () => {
     await expect(page.locator('.focus-editor__focus-value')).toHaveText('50% / 50%');
   });
 
+  test('1 + 2 主图的焦点预览与导出单元格比例一致', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 3);
+    await chooseDirection(page, '网格');
+    await page.getByLabel('网格布局').selectOption('1+2');
+    await selectThumb(page, 0);
+    await fitGroup(page).getByRole('button', { name: '填满' }).click();
+
+    const editor = page.locator('.focus-editor');
+    await expect(editor).toBeVisible();
+    const box = await editor.boundingBox();
+    expect(box.width / box.height).toBeCloseTo(1 / 0.6, 1);
+  });
+
   test('拖拽后的焦点随会话恢复', async ({ page }) => {
     await gotoApp(page);
     await uploadScreens(page, 4);
