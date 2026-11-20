@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { gotoApp, openSettings, runOnlyIn, setRangeWithKeyboard, uploadScreens, waitForResult } from './helpers/app.js';
+import { expectResultSize, gotoApp, openSettings, runOnlyIn, setRangeWithKeyboard, uploadScreens, waitForResult } from './helpers/app.js';
 
 test.describe('Settings undo', () => {
   runOnlyIn('desktop-chromium');
@@ -28,6 +28,29 @@ test.describe('Settings undo', () => {
     expect(state).toEqual({ horizontal: 'true', fit: 'true' });
     await page.keyboard.press('Control+z');
     await expect(horizontal).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('custom edge typing and unchanged blur are one undo step', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 2);
+    await openSettings(page);
+    await page.getByLabel('尺寸', { exact: true }).selectOption('custom');
+    const edge = page.getByLabel('自定义长边');
+    await expect(edge).toHaveValue('4096');
+    await page.waitForTimeout(700);
+    await edge.fill('1200');
+    await edge.press('ArrowUp');
+    await edge.press('ArrowUp');
+    await expect(edge).toHaveValue('1280');
+    // Blur after the coalescing window to catch unchanged duplicate commits.
+    await page.waitForTimeout(700);
+    await edge.press('Tab');
+    await expectResultSize(page, 200, 1280);
+    await page.locator('body').click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press('Control+z');
+    await expectResultSize(page, 500, 3200);
+    await page.keyboard.press('Control+Shift+z');
+    await expectResultSize(page, 200, 1280);
   });
 
   test('slider bursts coalesce only within the same field', async ({ page }) => {

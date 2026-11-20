@@ -39,7 +39,7 @@ const CustomEdgeField = ({ value, onCommit }) => {
                     const clamped = Number.isFinite(next) && draft !== ''
                         ? Math.min(16384, Math.max(512, Math.round(next)))
                         : value;
-                    onCommit(clamped);
+                    if (clamped !== value) onCommit(clamped);
                     setDraft(String(clamped));
                 }}
             />
@@ -163,7 +163,7 @@ const StitchSettings = ({
                 {exportSettings.sizeMode === 'custom' && (
                     <CustomEdgeField
                         value={exportSettings.customEdge}
-                        onCommit={(customEdge) => onExportChange({ customEdge })}
+                        onCommit={(customEdge) => onExportChange({ customEdge }, { coalesceKey: 'settings.export.customEdge' })}
                     />
                 )}
 
