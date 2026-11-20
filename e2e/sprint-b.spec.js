@@ -113,6 +113,36 @@ test.describe('Sprint B · 网格预设', () => {
     await expectResultSize(page, 1000, 850);
   });
 
+  test('圆角为零时，填满的主图不会溢出网格单元', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 3);
+    await chooseDirection(page, '网格');
+    await page.getByLabel('网格布局').selectOption('1+2');
+    await expectResultSize(page, 1000, 975);
+
+    const result = page.locator('img.result-image');
+    const containSrc = await result.getAttribute('src');
+    await selectThumb(page, 0);
+    await fitGroup(page).getByRole('button', { name: '填满' }).click();
+    await expect(result).not.toHaveAttribute('src', containSrc);
+
+    const { insideHero, belowHero } = await result.evaluate(async (image) => {
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(image, 0, 0);
+      return {
+        insideHero: Array.from(context.getImageData(20, 300, 1, 1).data),
+        belowHero: Array.from(context.getImageData(20, 700, 1, 1).data)
+      };
+    });
+
+    expect(insideHero[3], 'the hero fills the left side of its own cell').toBe(255);
+    expect(belowHero, 'the letterbox below the hero stays transparent').toEqual([0, 0, 0, 0]);
+  });
+
   test('焦点会改变网格单元里实际裁切的区域', async ({ page }) => {
     await gotoApp(page);
     await uploadFiles(page, [fixture('left-right-wide.png')]);
