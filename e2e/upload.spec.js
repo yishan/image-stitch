@@ -44,7 +44,7 @@ test.describe('上传与编辑', () => {
     await expect(notice).toHaveText('1 non-image file(s) skipped');
     await expect(liveRegion).toHaveText('1 non-image file(s) skipped');
     await page.getByRole('button', { name: '中文', exact: true }).click();
-    await expect.soft(notice).toHaveText('1 个非图片文件未添加');
+    await expect(notice).toHaveText('1 个非图片文件未添加');
     await expect(liveRegion).toHaveText('1 个非图片文件未添加');
 
     await uploadFiles(page, [fixture('screen-1.png')]);
