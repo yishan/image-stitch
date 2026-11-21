@@ -221,7 +221,7 @@ function App() {
         // Undo/redo can return to the last persisted state; markSaving already
         // set "saving", so restore the saved status without another write.
         const timer = window.setTimeout(() => {
-            setSessionStatus((previous) => (previous === 'unavailable' ? previous : 'saved'));
+            setSessionStatus((previous) => (previous === 'saving' ? 'saved' : previous));
         }, 0);
         return () => window.clearTimeout(timer);
     }
@@ -249,7 +249,7 @@ function App() {
     const signature = JSON.stringify(settings);
     if (signature === savedSettingsSignatureRef.current) {
         const timer = window.setTimeout(() => {
-            setSessionStatus((previous) => (previous === 'unavailable' ? previous : 'saved'));
+            setSessionStatus((previous) => (previous === 'saving' ? 'saved' : previous));
         }, 0);
         return () => window.clearTimeout(timer);
     }
@@ -376,8 +376,8 @@ function App() {
   const handleClearSession = useCallback(async () => {
     suppressSaveRef.current = true;
     sessionEpochRef.current += 1;
-    savedImagesSignatureRef.current = null;
-    savedSettingsSignatureRef.current = null;
+    savedImagesSignatureRef.current = imagesSignature([]);
+    savedSettingsSignatureRef.current = JSON.stringify(DEFAULT_SETTINGS);
     const cleared = await clearSession();
     urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     urlsRef.current.clear();
@@ -387,9 +387,7 @@ function App() {
     setSelectedId(null);
     setUploadMessage('');
     setSessionStatus(cleared ? 'cleared' : 'error');
-    window.setTimeout(() => {
-      suppressSaveRef.current = false;
-    }, 1200);
+    suppressSaveRef.current = false;
   }, []);
 
   const activeSelectedId = images.some((image) => image.id === selectedId) ? selectedId : null;
