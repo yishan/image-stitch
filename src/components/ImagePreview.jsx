@@ -65,38 +65,42 @@ const SortableItem = ({ image, index, dimensions, selected, onSelect, onDimensio
             style={style}
             className={`thumb${isDragging ? ' is-dragging' : ''}${selected ? ' is-selected' : ''}`}
             data-selected={selected || undefined}
-            tabIndex={0}
-            aria-current={selected ? 'true' : undefined}
-            aria-label={`${t('preview.itemAria', { index: index + 1 })}${selected ? t('preview.selectedSuffix') : ''}`}
-            onFocus={() => onSelect(image.id)}
-            onClick={() => onSelect(image.id)}
         >
             <div className="thumb-frame">
-                <img
-                    src={image.url}
-                    alt={t('preview.imageAlt', { index: index + 1, name: imageName })}
-                    style={previewStyle}
-                    onLoad={(event) => onDimensions(image.id, {
-                        width: event.currentTarget.naturalWidth,
-                        height: event.currentTarget.naturalHeight
-                    })}
-                />
-                <span className="thumb-index mono" aria-hidden="true">
-                    {String(index + 1).padStart(2, '0')}
-                </span>
                 <button
                     type="button"
-                    className="thumb-remove"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        onRemoveImage(image.id);
-                    }}
-                    aria-label={t('preview.removeAria', { index: index + 1, name: imageName })}
-                    title={t('preview.removeTitle')}
+                    className="thumb-select"
+                    aria-current={selected ? 'true' : undefined}
+                    aria-label={`${t('preview.itemAria', { index: index + 1 })}${selected ? t('preview.selectedSuffix') : ''}`}
+                    onFocus={() => onSelect(image.id)}
+                    onClick={() => onSelect(image.id)}
                 >
-                    <CloseIcon />
+                    <img
+                        src={image.url}
+                        alt={t('preview.imageAlt', { index: index + 1, name: imageName })}
+                        style={previewStyle}
+                        onLoad={(event) => onDimensions(image.id, {
+                            width: event.currentTarget.naturalWidth,
+                            height: event.currentTarget.naturalHeight
+                        })}
+                    />
+                    <span className="thumb-index mono" aria-hidden="true">
+                        {String(index + 1).padStart(2, '0')}
+                    </span>
                 </button>
             </div>
+            <button
+                type="button"
+                className="thumb-remove"
+                onClick={(event) => {
+                    event.stopPropagation();
+                    onRemoveImage(image.id);
+                }}
+                aria-label={t('preview.removeAria', { index: index + 1, name: imageName })}
+                title={t('preview.removeTitle')}
+            >
+                <CloseIcon />
+            </button>
             <div className="thumb-meta">
                 <span
                     className="thumb-dim mono"
