@@ -106,28 +106,26 @@ test('horizontal gap and margin are applied to width and height', async () => {
     );
 });
 
-test('wave phase stays aligned when image sizes differ', async () => {
+test('both sides of a wave share the same phase and overlap bounds', async () => {
     const { createStitchPlan } = await loadLayoutModule();
     const vertical = createStitchPlan(
-        [{ width: 1200, height: 800 }, { width: 600, height: 400 }],
+        [{ width: 1201, height: 800 }, { width: 600, height: 400 }],
         { direction: 'vertical', margin: 10 }
     );
     const horizontal = createStitchPlan(
-        [{ width: 600, height: 1000 }, { width: 400, height: 500 }],
+        [{ width: 400, height: 500 }, { width: 600, height: 1001 }],
         { direction: 'horizontal', margin: 10 }
     );
 
-    // Shared phase keeps the two clip paths on one continuous wave.
-    assert.equal(vertical.placements[0].bottomEdge.phase, 10);
-    assert.equal(vertical.placements[1].topEdge.phase, 10);
-    assert.equal(horizontal.placements[0].rightEdge.phase, 10);
-    assert.equal(horizontal.placements[1].leftEdge.phase, 10);
-
-    // Seam shadows are clipped to the overlap of the two adjacent images.
-    assert.equal(vertical.placements[0].bottomEdge.from, 310);
-    assert.equal(vertical.placements[0].bottomEdge.to, 910);
-    assert.equal(horizontal.placements[0].rightEdge.from, 260);
-    assert.equal(horizontal.placements[0].rightEdge.to, 760);
+    const span = ({ phase, from, to }) => ({ phase, from, to });
+    const verticalSpan = { phase: 10, from: 310.5, to: 910.5 };
+    const horizontalSpan = { phase: 10, from: 260.5, to: 760.5 };
+    assert.deepEqual(span(vertical.placements[0].bottomEdge), verticalSpan);
+    assert.deepEqual(span(vertical.placements[1].topEdge), verticalSpan);
+    assert.deepEqual(span(vertical.seamShadows[0]), verticalSpan);
+    assert.deepEqual(span(horizontal.placements[0].rightEdge), horizontalSpan);
+    assert.deepEqual(span(horizontal.placements[1].leftEdge), horizontalSpan);
+    assert.deepEqual(span(horizontal.seamShadows[0]), horizontalSpan);
 });
 
 test('seam strength scales the wave amplitude', async () => {
