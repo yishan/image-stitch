@@ -526,6 +526,11 @@ const traceRoundedRect = (ctx, x, y, width, height, radius) => {
     const r = Math.max(0, Math.min(radius, width / 2, height / 2));
 
     ctx.beginPath();
+    if (r === 0) {
+        ctx.rect(x, y, width, height);
+        return;
+    }
+
     ctx.moveTo(x + r, y);
     ctx.lineTo(x + width - r, y);
     ctx.arcTo(x + width, y, x + width, y + r, r);
@@ -540,15 +545,11 @@ const traceRoundedRect = (ctx, x, y, width, height, radius) => {
 
 const drawDirectStitchedImages = (ctx, placements, radius = 0) => {
     placements.forEach((placement) => {
-        if (radius > 0) {
-            ctx.save();
-            traceRoundedRect(ctx, placement.x, placement.y, placement.width, placement.height, radius);
-            ctx.clip();
-            drawPlacementImage(ctx, placement);
-            ctx.restore();
-            return;
-        }
+        ctx.save();
+        traceRoundedRect(ctx, placement.x, placement.y, placement.width, placement.height, radius);
+        ctx.clip();
         drawPlacementImage(ctx, placement);
+        ctx.restore();
     });
 };
 
