@@ -63,7 +63,7 @@ test.describe('Sprint A · 快捷键与撤销', () => {
 
     const firstThumb = page.locator('.thumb').first();
     await firstThumb.locator('.thumb-frame').click();
-    await expect(firstThumb).toHaveAttribute('aria-current', 'true');
+    await expect(firstThumb.locator('.thumb-select')).toHaveAttribute('aria-current', 'true');
 
     await page.keyboard.press('Delete');
     await expect(page.locator('.thumb')).toHaveCount(1);

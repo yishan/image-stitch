@@ -80,11 +80,11 @@
 }
 
 .thumb {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 6px;
     min-width: 0;
-    outline-offset: 4px;
 }
 
 .thumb.is-selected .thumb-frame {
@@ -106,6 +106,26 @@
     object-fit: contain;
 }
 
+.thumb-select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.thumb-select:focus-visible {
+    outline: none;
+}
+
+.thumb-select > * {
+    pointer-events: none;
+}
+
+.thumb-frame:has(.thumb-select:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+}
+
 .thumb-index {
     position: absolute;
     top: 5px;
@@ -119,15 +139,15 @@
 
 .thumb-remove {
     position: absolute;
-    top: 0;
-    right: 0;
+    top: -7px;
+    right: -7px;
     z-index: 2;
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
     width: 44px;
     height: 44px;
-    padding: 6px;
+    padding: 14px;
     opacity: 0;
     transition: opacity var(--dur-fast) var(--ease-out);
 }
