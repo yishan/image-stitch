@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
 import {
   chooseDirection,
+  expectResultSize,
   gotoApp,
   runOnlyIn,
   uploadScreens,
   waitForResult
 } from './helpers/app.js';
+import { downloadAndRead } from './helpers/downloads.js';
 
 const regionHash = (page) => page.locator('img.result-image').evaluate((image) => {
   const canvas = document.createElement('canvas');
@@ -103,11 +105,13 @@ test.describe('X4 · 本地打码', () => {
       input.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
+    const originalSrc = await page.locator('img.result-image').getAttribute('src');
     const imageBox = await page.locator('img.result-image').boundingBox();
     await page.mouse.move(imageBox.x + imageBox.width * 0.1, imageBox.y + imageBox.height * 0.1);
     await page.mouse.down();
     await page.mouse.move(imageBox.x + imageBox.width * 0.4, imageBox.y + imageBox.height * 0.35, { steps: 8 });
     await page.mouse.up();
+    await expect(page.locator('img.result-image')).not.toHaveAttribute('src', originalSrc);
     await waitForResult(page);
 
     const pixel = await page.locator('img.result-image').evaluate((image) => {
@@ -124,5 +128,50 @@ test.describe('X4 · 本地打码', () => {
       ).data).slice(0, 3);
     });
     expect(pixel).toEqual([255, 0, 0]);
+  });
+
+  test('fractional colour-block selection covers right and bottom pixels in the PNG', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 1);
+    await expectResultSize(page, 500, 1600);
+    await page.getByRole('button', { name: /^打码/ }).click();
+    await page.getByRole('button', { name: '色块', exact: true }).click();
+
+    const imageBox = await page.locator('img.result-image').boundingBox();
+    const moveToOutputPixel = (x, y) => page.mouse.move(
+      imageBox.x + x / 500 * imageBox.width,
+      imageBox.y + y / 1600 * imageBox.height
+    );
+    await moveToOutputPixel(100.8, 200.8);
+    await page.mouse.down();
+    await moveToOutputPixel(200.8, 400.8);
+    await page.mouse.up();
+    await expect(page.getByRole('button', { name: '打码（1）' })).toBeVisible();
+    await waitForResult(page);
+
+    const { bytes } = await downloadAndRead(page, '下载 PNG');
+    const pixels = await page.evaluate(async (png) => {
+      const image = await createImageBitmap(new Blob([new Uint8Array(png)], { type: 'image/png' }));
+      const canvas = document.createElement('canvas');
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(image, 0, 0);
+      return Object.fromEntries([
+        [100, 300], [199, 300], [200, 300], [201, 300], [150, 399], [150, 400], [150, 401]
+      ].map(([x, y]) => [`${x},${y}`, Array.from(ctx.getImageData(x, y, 1, 1).data)]));
+    }, Array.from(bytes));
+
+    const ink = [32, 28, 23, 255];
+    const original = [196, 78, 64, 255];
+    expect(pixels).toEqual({
+      '100,300': ink,
+      '199,300': ink,
+      '200,300': ink,
+      '201,300': original,
+      '150,399': ink,
+      '150,400': ink,
+      '150,401': [255, 255, 255, 255]
+    });
   });
 });

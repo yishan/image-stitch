@@ -38,8 +38,10 @@ export const applyRedactions = (canvas, redactions, options = {}) => {
         const rect = normalizeRedaction(raw);
         const x = Math.floor(rect.x * canvas.width);
         const y = Math.floor(rect.y * canvas.height);
-        const width = Math.max(1, Math.floor(rect.width * canvas.width));
-        const height = Math.max(1, Math.floor(rect.height * canvas.height));
+        const right = Math.min(canvas.width, Math.ceil((rect.x + rect.width) * canvas.width));
+        const bottom = Math.min(canvas.height, Math.ceil((rect.y + rect.height) * canvas.height));
+        const width = right - x;
+        const height = bottom - y;
         if (width < 1 || height < 1) return;
 
         const block = Math.max(minBlock, Math.round(Math.min(width, height) / 12));
