@@ -13,7 +13,7 @@ import { SLICE_HEIGHT_OPTIONS } from '../lib/exportSlices.js';
 
 const CustomEdgeField = ({ value, onCommit }) => {
     const { t } = useI18n();
-    const [draft, setDraft] = useState(String(value ?? 4096));
+    const [draft, setDraft] = useState(null);
 
     return (
         <label className="field field--number">
@@ -25,7 +25,7 @@ const CustomEdgeField = ({ value, onCommit }) => {
                 min="512"
                 max="16384"
                 step="64"
-                value={draft}
+                value={draft ?? String(value ?? 4096)}
                 onChange={(event) => {
                     const raw = event.target.value;
                     setDraft(raw);
@@ -35,12 +35,12 @@ const CustomEdgeField = ({ value, onCommit }) => {
                     }
                 }}
                 onBlur={() => {
+                    setDraft(null);
+                    if (draft === null || draft === '') return;
                     const next = Number(draft);
-                    const clamped = Number.isFinite(next) && draft !== ''
-                        ? Math.min(16384, Math.max(512, Math.round(next)))
-                        : value;
+                    if (!Number.isFinite(next)) return;
+                    const clamped = Math.min(16384, Math.max(512, Math.round(next)));
                     if (clamped !== value) onCommit(clamped);
-                    setDraft(String(clamped));
                 }}
             />
             <span className="field__value mono">px</span>
