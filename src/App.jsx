@@ -117,7 +117,10 @@ function App() {
   const sessionEpochRef = useRef(0);
   const savedImagesSignatureRef = useRef(null);
   const savedSettingsSignatureRef = useRef(null);
-  const [uploadMessage, setUploadMessage] = useState('');
+  const [uploadNotices, setUploadNotices] = useState([]);
+  const uploadMessage = uploadNotices
+    .map(({ key, params }) => t(key, params))
+    .join(locale === 'zh' ? '；' : '; ');
   const [theme, setTheme] = useState(getInitialTheme);
   const [selectedId, setSelectedId] = useState(null);
   const [sessionStatus, setSessionStatus] = useState(() => (
@@ -304,35 +307,35 @@ function App() {
 
     const messages = [];
     if (result.rejected.nonImage > 0) {
-      messages.push(t('app.notices.nonImage', { count: result.rejected.nonImage }));
+      messages.push({ key: 'app.notices.nonImage', params: { count: result.rejected.nonImage } });
     }
     if (result.rejected.tooLarge > 0) {
-      messages.push(t('app.notices.tooLarge', {
+      messages.push({ key: 'app.notices.tooLarge', params: {
         count: result.rejected.tooLarge,
         size: MAX_FILE_BYTES / (1024 * 1024)
-      }));
+      } });
     }
     if (result.rejected.overLimit > 0) {
-      messages.push(t('app.notices.overLimit', {
+      messages.push({ key: 'app.notices.overLimit', params: {
         max: MAX_IMAGE_COUNT,
         count: result.rejected.overLimit
-      }));
+      } });
     }
-    setUploadMessage(messages.join(locale === 'zh' ? '；' : '; '));
-  }, [commit, locale, t]);
+    setUploadNotices(messages);
+  }, [commit]);
 
   const handleRemoveImage = useCallback((id) => {
     const nextImages = removeImage(imagesRef.current, id, () => {});
     if (nextImages.length === imagesRef.current.length) return;
     commit({ images: nextImages, settings: settingsRef.current });
     setSelectedId((current) => (current === id ? null : current));
-    setUploadMessage('');
+    setUploadNotices([]);
   }, [commit]);
 
   const handleReset = useCallback(() => {
     commit({ images: [], settings: settingsRef.current });
     setSelectedId(null);
-    setUploadMessage('');
+    setUploadNotices([]);
   }, [commit]);
 
   const handleDragEnd = useCallback(({ active, over }) => {
@@ -385,7 +388,7 @@ function App() {
     settingsRef.current = DEFAULT_SETTINGS;
     setHistory(resetHistory({ images: [], settings: DEFAULT_SETTINGS }));
     setSelectedId(null);
-    setUploadMessage('');
+    setUploadNotices([]);
     setSessionStatus(cleared ? 'cleared' : 'error');
     suppressSaveRef.current = false;
   }, []);
