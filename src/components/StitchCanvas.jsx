@@ -59,6 +59,12 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     const [redactionColor, setRedactionColor] = useState(DEFAULT_REDACTION_COLOR);
 
     const exportSettings = settings.export || DEFAULT_EXPORT_SETTINGS;
+    const { direction, showWave: wave, gap, margin, seamStrength, gridPreset, backgroundColor, radius } = settings;
+    const { format: exportFormat, quality, sizeMode, customEdge } = exportSettings;
+    const renderSettings = useMemo(() => ({
+        direction, showWave: wave, gap, margin, seamStrength, gridPreset, backgroundColor, radius,
+        export: { format: exportFormat, quality, sizeMode, customEdge }
+    }), [direction, wave, gap, margin, seamStrength, gridPreset, backgroundColor, radius, exportFormat, quality, sizeMode, customEdge]);
     const format = getExportFormat(exportSettings.format);
     const support = getExportSupport();
     const showWave = settings.showWave !== false;
@@ -144,22 +150,22 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     throw error;
                 }
 
-                const currentFormat = getExportFormat(settings.export?.format);
-                const previewPlan = createStitchPlan(loadedImages, settings);
+                const currentFormat = getExportFormat(renderSettings.export.format);
+                const previewPlan = createStitchPlan(loadedImages, renderSettings);
                 const preliminary = getExportDimensions(
                     previewPlan.totalWidth,
                     previewPlan.totalHeight,
-                    settings.export || DEFAULT_EXPORT_SETTINGS
+                    renderSettings.export
                 );
                 const maxPixels = preliminary.width * preliminary.height > SAFE_CANVAS_AREA
                     ? getSafeMaxPixels(preliminary.width * preliminary.height)
                     : DEFAULT_OUTPUT_LIMITS.maxPixels;
-                const plan = renderStitch(canvas, loadedImages, settings, { maxPixels });
+                const plan = renderStitch(canvas, loadedImages, renderSettings, { maxPixels });
                 applyRedactions(canvas, redactions);
                 const blob = await canvasToBlob(
                     canvas,
                     currentFormat.mime,
-                    currentFormat.lossy ? settings.export?.quality : undefined
+                    currentFormat.lossy ? renderSettings.export.quality : undefined
                 );
                 if (!isCurrentGeneration()) return;
 
@@ -197,7 +203,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                 });
             } catch (generationError) {
                 if (isCurrentGeneration()) {
-                    setError(generationError.code ? t(`errors.${generationError.code}`, generationError.params) : t('errors.render'));
+                    setError({ code: generationError.code || 'render', params: generationError.params });
                     setOutput(null);
                 }
             } finally {
@@ -213,7 +219,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
             window.clearTimeout(timer);
             if (generationRef.current === generation) generationRef.current += 1;
         };
-    }, [images, settings, redactions, retryKey, t]);
+    }, [images, renderSettings, redactions, retryKey]);
 
     const estimate = useMemo(() => {
         if (!sourceImages || sourceImages.length === 0) return null;
@@ -553,7 +559,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                 <StitchStage
                     canvasRef={canvasRef}
                     isGenerating={isGenerating}
-                    error={error}
+                    error={error ? t(`errors.${error.code}`, error.params) : ''}
                     canvasUrl={canvasUrl}
                     output={output}
                     previewMode={previewMode}
