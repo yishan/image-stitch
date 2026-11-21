@@ -39,7 +39,7 @@ const CustomEdgeField = ({ value, onCommit }) => {
                     const clamped = Number.isFinite(next) && draft !== ''
                         ? Math.min(16384, Math.max(512, Math.round(next)))
                         : value;
-                    onCommit(clamped);
+                    if (clamped !== value) onCommit(clamped);
                     setDraft(String(clamped));
                 }}
             />
@@ -71,8 +71,8 @@ const StitchSettings = ({
         <div className="advanced-panel">
             <div className="advanced-group">
                 <h3>{t('settings.canvas')}</h3>
-                <RangeField label={t('settings.margin')} value={settings.margin || 0} min={0} max={64} step={4} onChange={(margin) => onSettingChange({ margin })} />
-                <RangeField label={t('settings.gap')} value={settings.gap || 0} min={0} max={64} step={4} onChange={(gap) => onSettingChange({ gap })} />
+                <RangeField label={t('settings.margin')} value={settings.margin || 0} min={0} max={64} step={4} onChange={(margin) => onSettingChange({ margin }, { coalesceKey: 'settings.margin' })} />
+                <RangeField label={t('settings.gap')} value={settings.gap || 0} min={0} max={64} step={4} onChange={(gap) => onSettingChange({ gap }, { coalesceKey: 'settings.gap' })} />
                 <RangeField
                     label={t('settings.radius')}
                     value={settings.radius || 0}
@@ -80,7 +80,7 @@ const StitchSettings = ({
                     max={32}
                     step={2}
                     disabled={waveActive}
-                    onChange={(radius) => onSettingChange({ radius })}
+                    onChange={(radius) => onSettingChange({ radius }, { coalesceKey: 'settings.radius' })}
                 />
                 {waveActive && <p className="field-hint">{t('settings.radiusWaveHint')}</p>}
                 {gridDirect && <p className="field-hint">{t('settings.gridDirectHint')}</p>}
@@ -105,7 +105,7 @@ const StitchSettings = ({
                                 type="color"
                                 aria-label={t('settings.customBg')}
                                 value={customColor}
-                                onChange={(event) => onSettingChange({ backgroundColor: event.target.value })}
+                                onChange={(event) => onSettingChange({ backgroundColor: event.target.value }, { coalesceKey: 'settings.backgroundColor' })}
                             />
                             <span className="visually-hidden">{t('settings.customBg')}</span>
                         </label>
@@ -141,7 +141,7 @@ const StitchSettings = ({
                         max={100}
                         step={5}
                         suffix="%"
-                        onChange={(quality) => onExportChange({ quality: quality / 100 })}
+                        onChange={(quality) => onExportChange({ quality: quality / 100 }, { coalesceKey: 'settings.export.quality' })}
                     />
                 ) : (
                     <p className="field-hint">{t('settings.pngHint')}</p>
@@ -163,7 +163,7 @@ const StitchSettings = ({
                 {exportSettings.sizeMode === 'custom' && (
                     <CustomEdgeField
                         value={exportSettings.customEdge}
-                        onCommit={(customEdge) => onExportChange({ customEdge })}
+                        onCommit={(customEdge) => onExportChange({ customEdge }, { coalesceKey: 'settings.export.customEdge' })}
                     />
                 )}
 
