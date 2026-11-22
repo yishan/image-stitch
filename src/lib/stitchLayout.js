@@ -261,21 +261,23 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
         images.forEach((item, index) => {
             const draw = fitted[index];
             const y = margin + (maxHeight - draw.height) / 2;
+            const previous = fitted[index - 1];
+            const previousY = previous ? margin + (maxHeight - previous.height) / 2 : 0;
             const next = fitted[index + 1];
             const nextY = next ? margin + (maxHeight - next.height) / 2 : 0;
 
-            const leftEdge = showWave && index > 0
+            const leftEdge = showWave && previous
                 ? createEdge({
                     orientation: 'vertical',
                     x: cursorX,
-                    from: y,
-                    to: y + draw.height,
+                    from: Math.max(y, previousY),
+                    to: Math.min(y + draw.height, previousY + previous.height),
                     phase: margin,
                     amplitude,
                     wavelength
                 })
                 : null;
-            const rightEdge = showWave && index < images.length - 1
+            const rightEdge = showWave && next
                 ? createEdge({
                     orientation: 'vertical',
                     x: cursorX + draw.width,
@@ -441,20 +443,22 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
         const y = cursorY;
         // Shared phase origin across the whole seam so mixed-width images
         // still meet on one continuous wave.
+        const previous = fitted[index - 1];
+        const previousX = previous ? margin + (maxWidth - previous.width) / 2 : 0;
         const next = fitted[index + 1];
         const nextX = next ? margin + (maxWidth - next.width) / 2 : 0;
-        const topEdge = showWave && index > 0
+        const topEdge = showWave && previous
             ? createEdge({
                 orientation: 'horizontal',
                 y,
-                from: x,
-                to: x + draw.width,
+                from: Math.max(x, previousX),
+                to: Math.min(x + draw.width, previousX + previous.width),
                 phase: margin,
                 amplitude,
                 wavelength
             })
             : null;
-        const bottomEdge = showWave && index < images.length - 1
+        const bottomEdge = showWave && next
             ? createEdge({
                 orientation: 'horizontal',
                 y: y + draw.height,

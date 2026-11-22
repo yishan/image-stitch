@@ -386,15 +386,16 @@ export const getRenderCacheStats = () => renderCache.stats;
 
 const edgePhase = (edge) => edge.phase ?? edge.from;
 
+const WAVE_STEP = 4;
+const waveOffsetAt = (pos, edge) => getWaveOffset(pos, edgePhase(edge), edge.amplitude, edge.wavelength);
+
 const traceWaveLine = (ctx, seam, offset = 0) => {
-    const { orientation, x, y, from, to, amplitude, wavelength } = seam;
-    const phase = edgePhase(seam);
-    const step = 4;
+    const { orientation, x, y, from, to } = seam;
 
     ctx.beginPath();
 
-    for (let pos = from; pos <= to; pos += step) {
-        const waveOffset = getWaveOffset(pos, phase, amplitude, wavelength);
+    for (let pos = from; pos <= to; pos += WAVE_STEP) {
+        const waveOffset = waveOffsetAt(pos, seam);
         const pointX = orientation === 'vertical' ? x + waveOffset + offset : pos;
         const pointY = orientation === 'vertical' ? pos : y + waveOffset + offset;
 
@@ -402,7 +403,7 @@ const traceWaveLine = (ctx, seam, offset = 0) => {
         else ctx.lineTo(pointX, pointY);
     }
 
-    const finalWaveOffset = getWaveOffset(to, phase, amplitude, wavelength);
+    const finalWaveOffset = waveOffsetAt(to, seam);
     ctx.lineTo(
         orientation === 'vertical' ? x + finalWaveOffset + offset : to,
         orientation === 'vertical' ? to : y + finalWaveOffset + offset
@@ -419,47 +420,55 @@ const drawRippleSeamShadows = (ctx, seams, totalWidth, totalHeight) => {
     ctx.lineWidth = lineWidth;
 
     seams.forEach((seam) => {
+        ctx.save();
+        ctx.beginPath();
+        const length = seam.to - seam.from;
+        if (seam.orientation === 'vertical') ctx.rect(0, seam.from, totalWidth, length);
+        else ctx.rect(seam.from, 0, length, totalHeight);
+        ctx.clip();
+
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
         traceWaveLine(ctx, seam, -offset);
         ctx.stroke();
         ctx.strokeStyle = 'rgba(40, 40, 40, 0.42)';
         traceWaveLine(ctx, seam, offset);
         ctx.stroke();
+        ctx.restore();
     });
 
     ctx.restore();
 };
 
-const addHorizontalEdge = (ctx, edge, left, right, reverse = false) => {
-    const step = 4;
-    const start = reverse ? right : left;
-    const end = reverse ? left : right;
-    const direction = reverse ? -step : step;
-
-    const phase = edgePhase(edge);
-
-    for (let x = start; reverse ? x >= end : x <= end; x += direction) {
-        const y = edge.y + getWaveOffset(x, phase, edge.amplitude, edge.wavelength);
-        ctx.lineTo(x, y);
+const addWaveClipEdge = (ctx, edge, fixed, start, end) => {
+    const vertical = edge.orientation === 'vertical';
+    const lineTo = (along, across) => (
+        vertical ? ctx.lineTo(across, along) : ctx.lineTo(along, across)
+    );
+    const reverse = end < start;
+    const from = Math.max(edge.from, Math.min(start, end));
+    const to = Math.min(edge.to, Math.max(start, end));
+    if (from >= to) {
+        lineTo(end, fixed);
+        return;
     }
 
-    ctx.lineTo(end, edge.y + getWaveOffset(end, phase, edge.amplitude, edge.wavelength));
-};
+    const waveStart = reverse ? to : from;
+    const waveEnd = reverse ? from : to;
+    if (start !== waveStart) lineTo(waveStart, fixed);
 
-const addVerticalEdge = (ctx, edge, top, bottom, reverse = false) => {
-    const step = 4;
-    const start = reverse ? bottom : top;
-    const end = reverse ? top : bottom;
-    const direction = reverse ? -step : step;
-
-    const phase = edgePhase(edge);
-
-    for (let y = start; reverse ? y >= end : y <= end; y += direction) {
-        const x = edge.x + getWaveOffset(y, phase, edge.amplitude, edge.wavelength);
-        ctx.lineTo(x, y);
+    // Sample both sides at the same coordinates, even when traced in reverse.
+    const steps = Math.ceil((to - from) / WAVE_STEP);
+    const waveBase = vertical ? edge.x : edge.y;
+    for (let step = 0; step <= steps; step += 1) {
+        const index = reverse ? steps - step : step;
+        const pos = Math.min(from + index * WAVE_STEP, to);
+        lineTo(pos, waveBase + waveOffsetAt(pos, edge));
     }
 
-    ctx.lineTo(edge.x + getWaveOffset(end, phase, edge.amplitude, edge.wavelength), end);
+    if (end !== waveEnd) {
+        lineTo(waveEnd, fixed);
+        lineTo(end, fixed);
+    }
 };
 
 const createImageClipPath = (ctx, placement) => {
@@ -468,18 +477,19 @@ const createImageClipPath = (ctx, placement) => {
     const bottomY = y + height;
 
     ctx.beginPath();
-    ctx.moveTo(x, topEdge ? topEdge.y + getWaveOffset(x, edgePhase(topEdge), topEdge.amplitude, topEdge.wavelength) : y);
+    const startsOnWave = topEdge && topEdge.from <= x && x < topEdge.to;
+    ctx.moveTo(x, startsOnWave ? topEdge.y + waveOffsetAt(x, topEdge) : y);
 
-    if (topEdge) addHorizontalEdge(ctx, topEdge, x, rightX);
+    if (topEdge) addWaveClipEdge(ctx, topEdge, y, x, rightX);
     else ctx.lineTo(rightX, y);
 
-    if (rightEdge) addVerticalEdge(ctx, rightEdge, y, bottomY);
+    if (rightEdge) addWaveClipEdge(ctx, rightEdge, rightX, y, bottomY);
     else ctx.lineTo(rightX, bottomY);
 
-    if (bottomEdge) addHorizontalEdge(ctx, bottomEdge, x, rightX, true);
+    if (bottomEdge) addWaveClipEdge(ctx, bottomEdge, bottomY, rightX, x);
     else ctx.lineTo(x, bottomY);
 
-    if (leftEdge) addVerticalEdge(ctx, leftEdge, y, bottomY, true);
+    if (leftEdge) addWaveClipEdge(ctx, leftEdge, x, bottomY, y);
     else ctx.lineTo(x, y);
 
     ctx.closePath();
