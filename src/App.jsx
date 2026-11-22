@@ -117,6 +117,7 @@ function App() {
   const sessionEpochRef = useRef(0);
   const savedImagesSignatureRef = useRef(null);
   const savedSettingsSignatureRef = useRef(null);
+  const pendingUploadsRef = useRef([]);
   const [uploadNotices, setUploadNotices] = useState([]);
   const uploadMessage = uploadNotices
     .map(({ key, params }) => t(key, params))
@@ -298,6 +299,11 @@ function App() {
   }, [markSaving]);
 
   const handleImagesUpload = useCallback((files) => {
+    if (pendingUploadsRef.current) {
+      pendingUploadsRef.current.push(files);
+      return;
+    }
+
     const result = addImageFiles(imagesRef.current, files);
     result.addedImages.forEach((image) => urlsRef.current.add(image.url));
 
@@ -323,6 +329,13 @@ function App() {
     }
     setUploadNotices(messages);
   }, [commit]);
+
+  useEffect(() => {
+    if (!sessionReady || !pendingUploadsRef.current) return;
+    const pendingUploads = pendingUploadsRef.current;
+    pendingUploadsRef.current = null;
+    pendingUploads.forEach(handleImagesUpload);
+  }, [sessionReady, handleImagesUpload]);
 
   const handleRemoveImage = useCallback((id) => {
     const nextImages = removeImage(imagesRef.current, id, () => {});
