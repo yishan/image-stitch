@@ -13,7 +13,7 @@ import {
 
 const selectThumb = async (page, index) => {
   await page.locator('.thumb-frame').nth(index).click();
-  await expect(page.locator('.thumb').nth(index)).toHaveAttribute('aria-current', 'true');
+  await expect(page.locator('.thumb-select').nth(index)).toHaveAttribute('aria-current', 'true');
 };
 
 const fitGroup = (page) => page.getByRole('group', { name: '填充方式' });
