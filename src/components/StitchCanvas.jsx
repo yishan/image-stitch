@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GRID_PRESETS, createStitchPlan } from '../lib/stitchLayout.js';
+import { GRID_PRESET_IDS, createStitchPlan } from '../lib/stitchLayout.js';
 import {
     DEFAULT_EXPORT_SETTINGS,
     DEFAULT_OUTPUT_LIMITS,
@@ -433,7 +433,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                             value={settings.gridPreset || 'auto'}
                             onChange={(event) => updateSettings({ gridPreset: event.target.value })}
                         >
-                            {GRID_PRESETS.map(([id]) => (
+                            {GRID_PRESET_IDS.map((id) => (
                                 <option key={id} value={id}>{t(`settings.gridPresets.${id}`)}</option>
                             ))}
                         </select>

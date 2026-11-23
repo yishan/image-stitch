@@ -1,11 +1,10 @@
-import { DEFAULT_EXPORT_SETTINGS } from './stitchRenderer.js';
+import { SLICE_HEIGHTS } from './exportSlices.js';
+import { GRID_PRESET_IDS, SEAM_STRENGTH_IDS } from './stitchLayout.js';
+import { DEFAULT_EXPORT_SETTINGS, EXPORT_FORMATS, SIZE_MODE_IDS } from './stitchRenderer.js';
 
 export const DIRECTIONS = ['vertical', 'horizontal', 'collage'];
-export const SEAM_STRENGTH_IDS = ['fine', 'regular', 'bold'];
-export const EXPORT_FORMAT_IDS = ['png', 'jpeg', 'webp'];
-export const SIZE_MODE_IDS = ['auto', 'long', 'edge4096', 'width1080', 'custom'];
 export const PREVIEW_MODES = ['fit', 'width'];
-export const GRID_PRESET_IDS = ['auto', '2x2', '1+2', '1+3'];
+const EXPORT_FORMAT_IDS = Object.values(EXPORT_FORMATS).map(({ id }) => id);
 
 export const isCustomHex = (value) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value || '');
 
@@ -53,9 +52,7 @@ export const sanitizeSettings = (candidate) => {
             quality: clampNumber(exportSource.quality, 0.3, 1, DEFAULT_EXPORT_SETTINGS.quality),
             sizeMode: pick(exportSource.sizeMode, SIZE_MODE_IDS, DEFAULT_EXPORT_SETTINGS.sizeMode),
             customEdge: clampNumber(exportSource.customEdge, 512, 16384, DEFAULT_EXPORT_SETTINGS.customEdge),
-            sliceHeight: [0, 2048, 4096, 8192].includes(Number(exportSource.sliceHeight))
-                ? Number(exportSource.sliceHeight)
-                : DEFAULT_EXPORT_SETTINGS.sliceHeight
+            sliceHeight: pick(Number(exportSource.sliceHeight), SLICE_HEIGHTS, DEFAULT_EXPORT_SETTINGS.sliceHeight)
         }
     };
 };

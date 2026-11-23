@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { SLICE_HEIGHTS } from './exportSlices.js';
+import { GRID_PRESET_IDS, SEAM_STRENGTH_IDS } from './stitchLayout.js';
+import { EXPORT_FORMATS, SIZE_MODE_IDS } from './stitchRenderer.js';
 import { DEFAULT_SETTINGS, sanitizeSettings } from './stitchSettings.js';
 
 test('sanitizeSettings falls back to defaults for missing values', () => {
@@ -16,12 +19,14 @@ test('sanitizeSettings clamps numeric fields and rejects unknown enums', () => {
         radius: '20',
         seamStrength: 'huge',
         previewMode: 'zoom',
+        gridPreset: '3x3',
         backgroundColor: '#123abc',
         export: {
             format: 'gif',
             quality: 3,
             sizeMode: 'poster',
-            customEdge: 1
+            customEdge: 1,
+            sliceHeight: 1024
         }
     });
 
@@ -31,11 +36,13 @@ test('sanitizeSettings clamps numeric fields and rejects unknown enums', () => {
     assert.equal(settings.radius, 20);
     assert.equal(settings.seamStrength, 'regular');
     assert.equal(settings.previewMode, 'fit');
+    assert.equal(settings.gridPreset, 'auto');
     assert.equal(settings.backgroundColor, '#123abc');
     assert.equal(settings.export.format, 'png');
     assert.equal(settings.export.quality, 1);
     assert.equal(settings.export.sizeMode, 'auto');
     assert.equal(settings.export.customEdge, 512);
+    assert.equal(settings.export.sliceHeight, 0);
 });
 
 test('sanitizeSettings preserves valid custom values', () => {
@@ -63,4 +70,26 @@ test('sanitizeSettings preserves valid custom values', () => {
     assert.equal(settings.export.quality, 0.85);
     assert.equal(settings.export.sizeMode, 'long');
     assert.equal(settings.export.customEdge, 8192);
+});
+
+test('sanitizeSettings preserves every declared control choice', () => {
+    for (const gridPreset of GRID_PRESET_IDS) {
+        assert.equal(sanitizeSettings({ gridPreset }).gridPreset, gridPreset);
+    }
+    for (const seamStrength of SEAM_STRENGTH_IDS) {
+        assert.equal(sanitizeSettings({ seamStrength }).seamStrength, seamStrength);
+    }
+    for (const { id: format } of Object.values(EXPORT_FORMATS)) {
+        assert.equal(sanitizeSettings({ export: { format } }).export.format, format);
+    }
+    for (const sizeMode of SIZE_MODE_IDS) {
+        assert.equal(sanitizeSettings({ export: { sizeMode } }).export.sizeMode, sizeMode);
+    }
+    for (const sliceHeight of SLICE_HEIGHTS) {
+        assert.equal(sanitizeSettings({ export: { sliceHeight } }).export.sliceHeight, sliceHeight);
+    }
+});
+
+test('sanitizeSettings accepts numeric slice heights stored as strings', () => {
+    assert.equal(sanitizeSettings({ export: { sliceHeight: '4096' } }).export.sliceHeight, 4096);
 });
