@@ -39,7 +39,7 @@ const canvasToBlob = (canvas, type, quality) => new Promise((resolve, reject) =>
     }, type, quality);
 });
 
-const drawSlice = (source, range) => {
+const drawSlice = (source, range, background) => {
     const canvas = document.createElement('canvas');
     canvas.width = source.width;
     canvas.height = range.height;
@@ -49,22 +49,38 @@ const drawSlice = (source, range) => {
         error.code = 'canvasUnsupported';
         throw error;
     }
+    if (background) {
+        ctx.fillStyle = background;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
     ctx.drawImage(source, 0, range.y, source.width, range.height, 0, 0, source.width, range.height);
     return canvas;
 };
 
-export const sliceCanvasToBlobs = async (canvas, { sliceHeight, mime = 'image/png', quality } = {}) => {
-    const ranges = getSliceRanges(canvas.height, sliceHeight);
-    const slices = [];
-
-    for (const range of ranges) {
-        const slice = drawSlice(canvas, range);
-        const blob = await canvasToBlob(slice, mime, quality);
-        slices.push({ ...range, blob });
+/**
+ * Crop every slice before the first await: the source is the live preview
+ * canvas, which a re-render can redraw while earlier slices are encoding.
+ */
+const encodeSlices = async (source, sliceHeight, encode, background) => {
+    const ranges = getSliceRanges(source.height, sliceHeight);
+    const canvases = ranges.map((range) => drawSlice(source, range, background));
+    const results = [];
+    try {
+        for (const [index, range] of ranges.entries()) {
+            results.push(await encode(canvases[index], range));
+        }
+    } finally {
+        canvases.forEach((canvas) => { canvas.width = 0; });
     }
-
-    return slices;
+    return results;
 };
+
+export const sliceCanvasToBlobs = (canvas, { sliceHeight, mime = 'image/png', quality } = {}) => (
+    encodeSlices(canvas, sliceHeight, async (slice, range) => ({
+        ...range,
+        blob: await canvasToBlob(slice, mime, quality)
+    }))
+);
 
 const concatBytes = (chunks) => {
     const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
@@ -158,30 +174,10 @@ export const buildImagePdf = (pages) => {
     return concatBytes(chunks);
 };
 
-const sliceToJpeg = async (canvas, range, quality = 0.92) => {
-    const slice = drawSlice(canvas, range);
-    const flatten = document.createElement('canvas');
-    flatten.width = slice.width;
-    flatten.height = slice.height;
-    const ctx = flatten.getContext('2d');
-    if (!ctx) {
-        const error = new Error('Canvas is unsupported');
-        error.code = 'canvasUnsupported';
-        throw error;
-    }
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, flatten.width, flatten.height);
-    ctx.drawImage(slice, 0, 0);
-    const blob = await canvasToBlob(flatten, 'image/jpeg', quality);
-    return { width: flatten.width, height: flatten.height, jpeg: new Uint8Array(await blob.arrayBuffer()) };
-};
-
 export const canvasToPdfBlob = async (canvas, { sliceHeight, quality = 0.92 } = {}) => {
-    const ranges = getSliceRanges(canvas.height, sliceHeight);
-    const pages = [];
-    for (const range of ranges) {
-        const page = await sliceToJpeg(canvas, range, quality);
-        pages.push(page);
-    }
+    const pages = await encodeSlices(canvas, sliceHeight, async (slice) => {
+        const blob = await canvasToBlob(slice, 'image/jpeg', quality);
+        return { width: slice.width, height: slice.height, jpeg: new Uint8Array(await blob.arrayBuffer()) };
+    }, '#ffffff');
     return new Blob([buildImagePdf(pages)], { type: 'application/pdf' });
 };
