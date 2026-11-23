@@ -116,8 +116,7 @@ export default {
         retry: '重试',
         alt: '拼接结果预览，{width} × {height} 像素',
         altEmpty: '拼接结果预览',
-        maskAria: '打码框选区域；在结果图上拖动创建马赛克或色块',
-        maskHint: '拖动框选要打码的区域'
+        maskAria: '打码框选区域；在结果图上拖动创建马赛克或色块'
     },
     canvas: {
         directionAria: '拼接方向',

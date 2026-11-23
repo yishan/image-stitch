@@ -169,7 +169,6 @@ const StitchStage = ({
                     onPointerCancel={finishDrag}
                     onLostPointerCapture={finishDrag}
                 >
-                    {!drag && <span className="redaction-layer__hint">{t('stage.maskHint')}</span>}
                     {drag && previewStyle && (
                         <span className="redaction-drag" style={previewStyle} aria-hidden="true" />
                     )}
