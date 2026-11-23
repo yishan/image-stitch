@@ -42,6 +42,7 @@ test('stored session images handle a missing collection', () => {
 
 test('diff saves preserve unchanged rows, order and transforms, and recover after failure', async () => {
     const rows = new Map();
+    const settings = new Map();
     let operations = [];
     let fail = false;
     const original = globalThis.indexedDB;
@@ -53,21 +54,23 @@ test('diff saves preserve unchanged rows, order and transforms, and recover afte
                     close() {},
                     transaction(_, mode) {
                         const pending = new Map(rows);
+                        const pendingSettings = new Map(settings);
                         const transaction = {
                             objectStore(name) {
+                                const target = name === 'images' ? pending : pendingSettings;
                                 return {
-                                    clear() { operations.push('clear'); pending.clear(); },
-                                    put(row) { operations.push(`put:${row.id}`); pending.set(row.id, row); },
+                                    clear() { if (name === 'images') operations.push('clear'); target.clear(); },
+                                    put(row) { if (name === 'images') operations.push(`put:${row.id}`); target.set(row.id, row); },
                                     delete(id) { operations.push(`delete:${id}`); pending.delete(id); },
                                     getAll() {
                                         const result = {};
                                         queueMicrotask(() => { result.result = [...rows.values()]; result.onsuccess(); });
                                         return result;
                                     },
-                                    get() {
+                                    get(key) {
                                         assert.equal(name, 'settings');
                                         const result = {};
-                                        queueMicrotask(() => { result.result = undefined; result.onsuccess(); });
+                                        queueMicrotask(() => { result.result = target.get(key); result.onsuccess(); });
                                         return result;
                                     }
                                 };
@@ -81,6 +84,8 @@ test('diff saves preserve unchanged rows, order and transforms, and recover afte
                             } else {
                                 rows.clear();
                                 pending.forEach((value, key) => rows.set(key, value));
+                                settings.clear();
+                                pendingSettings.forEach((value, key) => settings.set(key, value));
                                 transaction.oncomplete?.();
                             }
                         });
@@ -115,6 +120,14 @@ test('diff saves preserve unchanged rows, order and transforms, and recover afte
         operations = [];
         assert.equal(await saveSessionImages(images), true);
         assert.deepEqual(operations, ['clear', 'put:a', 'put:b', 'put:c']);
+        settings.set('image-revision', { id: 'image-revision', value: 'another-tab' });
+        rows.clear();
+        rows.set('unrelated', record('unrelated', 0));
+        operations = [];
+        assert.equal(await saveSessionImages(rotated), true);
+        assert.deepEqual(operations, ['clear', 'put:a', 'put:b', 'put:c']);
+        assert.deepEqual([...rows.keys()], ['a', 'b', 'c']);
+        assert.equal(rows.get('b').transform.rotate, 90);
         operations = [];
         assert.equal(await saveSessionImages([]), true);
         assert.deepEqual(operations, ['delete:a', 'delete:b', 'delete:c']);
