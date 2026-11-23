@@ -6,7 +6,17 @@ const DB_VERSION = 1;
 const IMAGE_STORE = 'images';
 const SETTINGS_STORE = 'settings';
 const SETTINGS_KEY = 'current';
+const IMAGE_REVISION_KEY = 'image-revision';
 export const MAX_SESSION_IMAGES = 6;
+
+let imageSnapshot = null;
+let imageRevision = null;
+let imageWrites = Promise.resolve();
+const enqueueImageWrite = (work) => {
+    const result = imageWrites.then(work);
+    imageWrites = result.catch(() => {});
+    return result;
+};
 
 export const isSessionStorageAvailable = () => typeof indexedDB !== 'undefined';
 
@@ -71,13 +81,24 @@ export const normalizeStoredImages = (records) => {
         }));
 };
 
-export const saveSessionImages = async (images) => {
+export const saveSessionImages = (images) => enqueueImageWrite(async () => {
     try {
         return await withDatabase(async (database) => {
-            const transaction = database.transaction(IMAGE_STORE, 'readwrite');
+            const transaction = database.transaction([IMAGE_STORE, SETTINGS_STORE], 'readwrite');
             const store = transaction.objectStore(IMAGE_STORE);
-            store.clear();
+            const settingsStore = transaction.objectStore(SETTINGS_STORE);
+            const nextSnapshot = new Map();
+            const done = transactionDone(transaction);
+            const revisionRecord = await requestToPromise(settingsStore.get(IMAGE_REVISION_KEY));
+            if (revisionRecord?.value !== imageRevision) imageSnapshot = null;
+            const nextRevision = crypto.randomUUID();
+            if (!imageSnapshot) store.clear();
             images.forEach((image, index) => {
+                const transform = normalizeTransform(image.transform);
+                const signature = JSON.stringify([index, transform]);
+                const previous = imageSnapshot?.get(image.id);
+                nextSnapshot.set(image.id, { signature, file: image.file });
+                if (previous?.signature === signature && previous.file === image.file) return;
                 store.put({
                     id: image.id,
                     index,
@@ -85,16 +106,23 @@ export const saveSessionImages = async (images) => {
                     type: image.file?.type || 'image/png',
                     lastModified: image.file?.lastModified || Date.now(),
                     blob: image.file,
-                    transform: normalizeTransform(image.transform)
+                    transform
                 });
             });
-            await transactionDone(transaction);
+            imageSnapshot?.forEach((_, id) => {
+                if (!nextSnapshot.has(id)) store.delete(id);
+            });
+            settingsStore.put({ id: IMAGE_REVISION_KEY, value: nextRevision });
+            await done;
+            imageSnapshot = nextSnapshot;
+            imageRevision = nextRevision;
             return true;
         }) === true;
     } catch {
+        imageSnapshot = null;
         return false;
     }
-};
+});
 
 export const saveSessionSettings = async (settings) => {
     try {
@@ -130,7 +158,8 @@ export const loadSession = async () => {
     }
 };
 
-export const clearSession = async () => {
+export const clearSession = () => enqueueImageWrite(async () => {
+    imageSnapshot = null;
     try {
         return await withDatabase(async (database) => {
             const transaction = database.transaction([IMAGE_STORE, SETTINGS_STORE], 'readwrite');
@@ -142,4 +171,4 @@ export const clearSession = async () => {
     } catch {
         return false;
     }
-};
+});
