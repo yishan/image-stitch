@@ -26,13 +26,7 @@ export const EXPORT_FORMATS = {
     webp: { id: 'webp', label: 'WebP', mime: 'image/webp', ext: 'webp', lossy: true }
 };
 
-export const SIZE_MODE_OPTIONS = [
-    ['auto', '默认（安全上限）'],
-    ['long', '长图模式（保持宽度）'],
-    ['edge4096', '长边 4096 px'],
-    ['width1080', '宽 1080 px'],
-    ['custom', '自定义长边']
-];
+export const SIZE_MODE_IDS = ['auto', 'long', 'edge4096', 'width1080', 'custom'];
 
 export const BACKGROUND_FILLS = {
     transparent: 'rgba(0, 0, 0, 0)',

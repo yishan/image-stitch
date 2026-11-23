@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { SEAM_STRENGTHS } from '../lib/stitchLayout.js';
+import { SEAM_STRENGTH_IDS } from '../lib/stitchLayout.js';
 import {
     BACKGROUND_OPTIONS,
     EXPORT_FORMATS,
-    SIZE_MODE_OPTIONS
+    SIZE_MODE_IDS
 } from '../lib/stitchRenderer.js';
 import { isCustomHex } from '../lib/stitchSettings.js';
 import { ChoiceGroup, RangeField } from './SettingsFields.jsx';
 import { useI18n } from '../i18n/index.jsx';
-import { SLICE_HEIGHT_OPTIONS } from '../lib/exportSlices.js';
+import { SLICE_HEIGHTS } from '../lib/exportSlices.js';
 
 
 const CustomEdgeField = ({ value, onCommit }) => {
@@ -117,7 +117,7 @@ const StitchSettings = ({
                 <h3>{t('settings.seam')}</h3>
                 <ChoiceGroup
                     label={t('settings.seamStrength')}
-                    options={SEAM_STRENGTHS.map(([id]) => [id, t(`settings.seamStrengths.${id}`)])}
+                    options={SEAM_STRENGTH_IDS.map((id) => [id, t(`settings.seamStrengths.${id}`)])}
                     value={settings.seamStrength || 'regular'}
                     disabled={!waveActive}
                     onChange={(seamStrength) => onSettingChange({ seamStrength })}
@@ -154,7 +154,7 @@ const StitchSettings = ({
                         value={exportSettings.sizeMode}
                         onChange={(event) => onExportChange({ sizeMode: event.target.value })}
                     >
-                        {SIZE_MODE_OPTIONS.map(([id]) => (
+                        {SIZE_MODE_IDS.map((id) => (
                             <option key={id} value={id}>{t(`settings.sizeModes.${id}`)}</option>
                         ))}
                     </select>
@@ -174,7 +174,7 @@ const StitchSettings = ({
                         value={exportSettings.sliceHeight || 0}
                         onChange={(event) => onExportChange({ sliceHeight: Number(event.target.value) })}
                     >
-                        {SLICE_HEIGHT_OPTIONS.map(([value]) => (
+                        {SLICE_HEIGHTS.map((value) => (
                             <option key={value} value={value}>{t(value === 0 ? 'settings.sliceOptions.none' : `settings.sliceOptions.h${value}`)}</option>
                         ))}
                     </select>

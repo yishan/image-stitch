@@ -8,18 +8,8 @@ export const SEAM_STRENGTH_FACTORS = {
     bold: 1.6
 };
 
-export const SEAM_STRENGTHS = [
-    ['fine', '细'],
-    ['regular', '标准'],
-    ['bold', '粗']
-];
-
-export const GRID_PRESETS = [
-    ['auto', '自动网格'],
-    ['2x2', '2×2 网格'],
-    ['1+2', '1 + 2'],
-    ['1+3', '1 + 3']
-];
+export const SEAM_STRENGTH_IDS = Object.keys(SEAM_STRENGTH_FACTORS);
+export const GRID_PRESET_IDS = ['auto', '2x2', '1+2', '1+3'];
 
 /**
  * Approximate aspect ratio of the fixed cell an image is placed in. Used by

@@ -1,11 +1,6 @@
 const encoder = new TextEncoder();
 
-export const SLICE_HEIGHT_OPTIONS = [
-    [0, '不切片'],
-    [2048, '每段 2048 px'],
-    [4096, '每段 4096 px'],
-    [8192, '每段 8192 px']
-];
+export const SLICE_HEIGHTS = [0, 2048, 4096, 8192];
 
 const normalizeSliceHeight = (value) => {
     const numeric = Number(value);
