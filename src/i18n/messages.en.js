@@ -116,8 +116,7 @@ export default {
         retry: 'Retry',
         alt: 'Stitch preview, {width} × {height} px',
         altEmpty: 'Stitch preview',
-        maskAria: 'Mask selection; drag on the result to create a mosaic or colour block',
-        maskHint: 'Drag to select an area to mask'
+        maskAria: 'Mask selection; drag on the result to create a mosaic or colour block'
     },
     canvas: {
         directionAria: 'Layout direction',

@@ -23,6 +23,23 @@ const regionHash = (page) => page.locator('img.result-image').evaluate((image) =
   return hash;
 });
 
+test('Mask instructions stay in the toolbar, not over the result', async ({ page }) => {
+  await gotoApp(page);
+  await uploadScreens(page, 3);
+  await waitForResult(page);
+  await page.getByRole('button', { name: /^打码/ }).click();
+
+  const overlay = page.getByRole('group', { name: '打码框选区域；在结果图上拖动创建马赛克或色块' });
+  await expect(overlay).toBeVisible();
+  const hint = page.locator('.redaction-toolbar__hint');
+  await expect(hint).toBeVisible();
+  await expect(hint).not.toBeEmpty();
+  await expect(overlay).toBeEmpty();
+  const imageBox = await page.locator('img.result-image').boundingBox();
+  const hintBox = await hint.boundingBox();
+  expect(hintBox.y + hintBox.height).toBeLessThanOrEqual(imageBox.y);
+});
+
 test.describe('X4 · 本地打码', () => {
   runOnlyIn('desktop-chromium');
 

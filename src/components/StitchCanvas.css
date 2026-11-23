@@ -1078,20 +1078,6 @@
     touch-action: none;
 }
 
-.redaction-layer__hint {
-    position: absolute;
-    top: var(--space-3);
-    left: 50%;
-    padding: 4px 8px;
-    transform: translateX(-50%);
-    border: 1px solid var(--line-control);
-    background: var(--surface);
-    color: var(--ink-soft);
-    font-size: var(--text-xs);
-    pointer-events: none;
-    white-space: nowrap;
-}
-
 .redaction-drag {
     position: absolute;
     border: 1px solid var(--accent);
