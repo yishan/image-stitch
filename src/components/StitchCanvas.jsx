@@ -194,6 +194,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     height: plan.height,
                     scale: plan.scale,
                     bytes: blob.size,
+                    pngBlob: blob.type === 'image/png' ? blob : null,
                     format: plan.format,
                     sizeMode: plan.exportSettings?.sizeMode,
                     customEdge: plan.exportSettings?.customEdge,
@@ -330,8 +331,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                 throw Object.assign(new Error('Copy unsupported'), { code: 'copyUnsupported' });
             }
 
-            // The clipboard path always encodes PNG so pasting is predictable.
-            const blob = await canvasToBlob(canvasRef.current, 'image/png');
+            const blob = output?.pngBlob ?? await canvasToBlob(canvasRef.current, 'image/png');
             await navigator.clipboard.write([
                 new window.ClipboardItem({ [blob.type]: blob })
             ]);
