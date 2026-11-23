@@ -25,6 +25,10 @@ import './StitchCanvas.css';
 
 const DIRECTIONS = ['horizontal', 'vertical', 'collage'];
 
+const changesSettings = (current, patch) => (
+    Object.entries(patch).some(([key, value]) => !Object.is(current[key], value))
+);
+
 const formatBytes = (bytes) => {
     if (!Number.isFinite(bytes) || bytes <= 0) return '';
     if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -253,15 +257,17 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     }, [settings, sourceImages]);
 
     const updateSettings = useCallback((patch, options) => {
+        if (!changesSettings(settings, patch)) return;
         onSettingsChange((previous) => ({ ...previous, ...patch }), options);
-    }, [onSettingsChange]);
+    }, [onSettingsChange, settings]);
 
     const updateExport = useCallback((patch, options) => {
+        if (!changesSettings(exportSettings, patch)) return;
         onSettingsChange((previous) => ({
             ...previous,
             export: { ...DEFAULT_EXPORT_SETTINGS, ...previous.export, ...patch }
         }), options);
-    }, [onSettingsChange]);
+    }, [exportSettings, onSettingsChange]);
 
     const resetSettings = useCallback(() => {
         onResetSettings();

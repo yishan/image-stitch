@@ -1,8 +1,47 @@
 import { expect, test } from '@playwright/test';
-import { expectResultSize, gotoApp, openSettings, runOnlyIn, setRangeWithKeyboard, uploadScreens, waitForResult } from './helpers/app.js';
+import { chooseDirection, expectResultSize, gotoApp, openSettings, runOnlyIn, selectFormat, setRangeWithKeyboard, uploadScreens, waitForResult } from './helpers/app.js';
 
 test.describe('Settings undo', () => {
   runOnlyIn('desktop-chromium');
+
+  test('re-clicking the active layout preserves redo', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 2);
+    await expectResultSize(page, 500, 3200);
+
+    await chooseDirection(page, '横向');
+    await expectResultSize(page, 1000, 1600);
+    await page.keyboard.press('Control+z');
+    await expectResultSize(page, 500, 3200);
+
+    await chooseDirection(page, '纵向');
+    await page.keyboard.press('Control+Shift+z');
+    await expectResultSize(page, 1000, 1600);
+  });
+
+  test('re-clicking the active layout adds no undo step', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 2);
+    await expectResultSize(page, 500, 3200);
+
+    await chooseDirection(page, '横向');
+    await expectResultSize(page, 1000, 1600);
+    await chooseDirection(page, '横向');
+    await page.keyboard.press('Control+z');
+    await expectResultSize(page, 500, 3200);
+  });
+
+  test('re-clicking the active export format preserves redo', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 1);
+    await selectFormat(page, 'JPEG');
+    await page.keyboard.press('Control+z');
+    await expect(page.getByRole('button', { name: '下载 PNG' })).toBeVisible();
+
+    await selectFormat(page, 'PNG');
+    await page.keyboard.press('Control+Shift+z');
+    await expect(page.getByRole('button', { name: '下载 JPEG' })).toBeVisible();
+  });
 
   test('direction and preview clicks are separate undo steps', async ({ page }) => {
     await gotoApp(page);
