@@ -236,7 +236,7 @@ p {
     background: color-mix(in oklch, var(--ink) 88%, var(--accent));
   }
 
-  .btn--secondary:hover:not(:disabled) {
+  .btn--secondary:hover:not(:disabled):not(.is-active) {
     border-color: var(--ink);
     background: var(--surface);
   }
