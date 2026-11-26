@@ -80,6 +80,41 @@ test.describe('Sprint B · 每图旋转/翻转/填充', () => {
     await waitForResult(page);
     await expectResultSize(page, 1600, 2100);
   });
+
+  test('旋转 90°/270° 后缩略图显示旋转后尺寸并重新计算低分辨率提示', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 2);
+
+    const dims = page.locator('.thumb-dim');
+    const note = page.locator('.preview-note');
+    await expect(dims.nth(0)).toHaveText('500×1600');
+    await expect(dims.nth(0)).toHaveAttribute('title', '500×1600 · 比例 0.31:1');
+    await expect(dims.nth(1)).toHaveText('500×1600');
+    await expect(note).toHaveCount(0);
+
+    await selectThumb(page, 0);
+    await page.getByRole('button', { name: '旋转 90°' }).click();
+    await expect(dims.nth(0)).toHaveText('1600×500');
+    await expect(dims.nth(0)).toHaveAttribute('title', '1600×500 · 比例 3.20:1');
+    await expect(dims.nth(1)).toHaveText('500×1600');
+    await expect(note).toHaveText('1 张图片分辨率偏小，将保持原始尺寸居中（不放大）');
+
+    await page.getByRole('button', { name: '旋转 90°' }).click();
+    await expect(dims.nth(0)).toHaveText('500×1600');
+    await expect(note).toHaveCount(0);
+
+    await page.getByRole('button', { name: '旋转 90°' }).click();
+    await expect(dims.nth(0)).toHaveText('1600×500');
+    await expect(note).toHaveText('1 张图片分辨率偏小，将保持原始尺寸居中（不放大）');
+
+    await chooseDirection(page, '横向');
+    await expect(note).toHaveText('1 张图片分辨率偏小，将保持原始尺寸居中（不放大）');
+
+    await selectThumb(page, 1);
+    await page.getByRole('button', { name: '旋转 90°' }).click();
+    await expect(dims.nth(1)).toHaveText('1600×500');
+    await expect(note).toHaveCount(0);
+  });
 });
 
 test.describe('Sprint B · 网格预设', () => {
