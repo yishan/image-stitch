@@ -50,14 +50,14 @@ export const uploadScreens = async (page, count) => {
 
 /** Wait until the debounced render finished and a result image is on screen. */
 export const waitForResult = async (page, timeout = 20_000) => {
-  await expect(page.locator('img.result-image')).toBeVisible({ timeout });
+  await expect(page.locator('canvas.result-image')).toBeVisible({ timeout });
   await expect(page.locator('.stage')).toHaveAttribute('aria-busy', 'false', { timeout });
 };
 
 export const resultSize = (page) => (
-  page.locator('img.result-image').evaluate((image) => ({
-    width: image.naturalWidth,
-    height: image.naturalHeight
+  page.locator('canvas.result-image').evaluate((canvas) => ({
+    width: canvas.width,
+    height: canvas.height
   }))
 );
 

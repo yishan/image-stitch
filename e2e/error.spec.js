@@ -21,7 +21,7 @@ test.describe('错误路径', () => {
     await expect(alert).toContainText('宽高比', { timeout: 20_000 });
     await expect(alert.getByRole('button', { name: '重试' })).toBeVisible();
     await expect(outputMeta(page)).toContainText('—');
-    await expect(page.locator('img.result-image')).toHaveCount(0);
+    await expect(page.locator('canvas.result-image')).toHaveCount(0);
 
     await page.getByRole('button', { name: 'English', exact: true }).click();
     await expect(alert).toContainText(/aspect ratio/i);

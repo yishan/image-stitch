@@ -25,6 +25,7 @@ test.describe('Render invalidation', () => {
       await uploadScreens(page, 2);
     }
     await waitForResult(page);
+    await expect(page.locator('.output-meta__size')).toHaveText(/^\d/);
     await page.evaluate(() => {
       window.encodeCount = 0;
       const original = HTMLCanvasElement.prototype.toBlob;
@@ -40,6 +41,9 @@ test.describe('Render invalidation', () => {
       // Allow the 160 ms render debounce to fire, including on the broken path.
       await page.waitForTimeout(250);
       await expect(page.locator('.stage')).toHaveAttribute('aria-busy', 'false');
+      if (action === 'pixel-gap') {
+        await expect(page.locator('.output-meta__size')).toHaveText(/^\d/);
+      }
       const result = await page.evaluate(() => ({
         count: window.encodeCount,
         ms: Math.round(performance.now() - window.actionStarted)

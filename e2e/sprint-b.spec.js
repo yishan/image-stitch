@@ -120,19 +120,13 @@ test.describe('Sprint B · 网格预设', () => {
     await page.getByLabel('网格布局').selectOption('1+2');
     await expectResultSize(page, 1000, 975);
 
-    const result = page.locator('img.result-image');
-    const containSrc = await result.getAttribute('src');
+    const result = page.locator('canvas.result-image');
     await selectThumb(page, 0);
     await fitGroup(page).getByRole('button', { name: '填满' }).click();
-    await expect(result).not.toHaveAttribute('src', containSrc);
+    await waitForResult(page);
 
-    const { insideHero, belowHero } = await result.evaluate(async (image) => {
-      await image.decode();
-      const canvas = document.createElement('canvas');
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
+    const { insideHero, belowHero } = await result.evaluate((canvas) => {
       const context = canvas.getContext('2d');
-      context.drawImage(image, 0, 0);
       return {
         insideHero: Array.from(context.getImageData(20, 300, 1, 1).data),
         belowHero: Array.from(context.getImageData(20, 700, 1, 1).data)
@@ -157,12 +151,8 @@ test.describe('Sprint B · 网格预设', () => {
     const centrePixel = async () => {
       await page.waitForTimeout(450);
       await waitForResult(page);
-      return page.locator('img.result-image').evaluate(async (image) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
+      return page.locator('canvas.result-image').evaluate((canvas) => {
         const context = canvas.getContext('2d');
-        context.drawImage(image, 0, 0);
         return Array.from(context.getImageData(
           Math.floor(canvas.width / 2),
           Math.floor(canvas.height / 2),

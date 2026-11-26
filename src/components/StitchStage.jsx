@@ -9,7 +9,6 @@ const StitchStage = ({
     canvasRef,
     isGenerating,
     error,
-    canvasUrl,
     output,
     previewMode,
     redactMode = false,
@@ -17,14 +16,13 @@ const StitchStage = ({
     onRetry
 }) => {
     const { t } = useI18n();
-    const showPreview = Boolean(canvasUrl) && !error;
+    const showPreview = Boolean(output) && !error;
     const stageRef = useRef(null);
-    const imageRef = useRef(null);
     const dragRef = useRef(null);
     const [drag, setDrag] = useState(null);
 
     const pointFor = (event, clampOutside = false) => {
-        const image = imageRef.current;
+        const image = canvasRef.current;
         const stage = stageRef.current;
         if (!image || !stage) return null;
         const imageBox = image.getBoundingClientRect();
@@ -118,19 +116,18 @@ const StitchStage = ({
 
     return (
         <div className="stage" aria-busy={isGenerating} data-preview-mode={previewMode} ref={stageRef}>
-            <canvas ref={canvasRef} className="hidden-canvas" />
             <div className="stage-ticks" aria-hidden="true">
                 <span /><span /><span /><span />
             </div>
 
-            {isGenerating && !canvasUrl && (
+            {isGenerating && !showPreview && (
                 <div className="stage-status">
                     <span className="stage-progress" aria-hidden="true"><span /></span>
                     <p>{t('stage.generating')}</p>
                 </div>
             )}
 
-            {isGenerating && canvasUrl && (
+            {isGenerating && showPreview && (
                 <div className="stage-refreshing" role="status">
                     <span className="stage-progress" aria-hidden="true"><span /></span>
                     <span>{t('stage.refreshing')}</span>
@@ -147,16 +144,13 @@ const StitchStage = ({
                 </div>
             )}
 
-            {showPreview && (
-                <img
-                    ref={imageRef}
-                    src={canvasUrl}
-                    alt={output ? t('stage.alt', { width: output.width, height: output.height }) : t('stage.altEmpty')}
-                    className="result-image"
-                    width={output?.width}
-                    height={output?.height}
-                />
-            )}
+            <canvas
+                ref={canvasRef}
+                hidden={!showPreview}
+                role="img"
+                aria-label={showPreview ? t('stage.alt', { width: output.width, height: output.height }) : undefined}
+                className={showPreview ? 'result-image' : undefined}
+            />
 
             {redactMode && showPreview && (
                 <div
