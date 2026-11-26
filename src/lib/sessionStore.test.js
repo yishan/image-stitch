@@ -40,7 +40,20 @@ test('stored session images handle a missing collection', () => {
     assert.deepEqual(normalizeStoredImages({}), []);
 });
 
-test('diff saves preserve unchanged rows, order and transforms, and recover after failure', async () => {
+test('ordered session metadata takes precedence over legacy indices and transforms', () => {
+    const a = { ...record('a', 0), transform: { rotate: 90 } };
+    const b = record('b', 1);
+    const images = normalizeStoredImages([a, b], [
+        { id: 'b', transform: { rotate: 180 } },
+        { id: 'a', transform: { rotate: 0 } }
+    ]);
+
+    assert.deepEqual(images.map(({ id, index, transform }) => [id, index, transform.rotate]), [['b', 0, 180], ['a', 1, 0]]);
+    assert.equal(images[0].blob, b.blob);
+    assert.equal(images[1].blob, a.blob);
+});
+
+test('diff saves preserve unchanged rows, order and transforms, and recover after failure', async (t) => {
     const rows = new Map();
     const settings = new Map();
     let operations = [];
@@ -137,6 +150,16 @@ test('diff saves preserve unchanged rows, order and transforms, and recover afte
         assert.equal(await loadSession(), null);
         await Promise.all([saveSessionImages(images), clearSession()]);
         assert.equal(rows.size, 0);
+
+        await t.test('the first reorder after loading reuses the saved blob rows', async () => {
+            assert.equal(await saveSessionImages(rotated), true);
+            const loaded = await loadSession();
+            operations = [];
+            assert.equal(await saveSessionImages([...loaded.images].reverse()), true);
+            assert.deepEqual(operations, []);
+            const reordered = await loadSession();
+            assert.deepEqual(reordered.images.map(({ id, transform }) => [id, transform.rotate]), [['c', 0], ['b', 90], ['a', 0]]);
+        });
     } finally {
         globalThis.indexedDB = original;
     }
