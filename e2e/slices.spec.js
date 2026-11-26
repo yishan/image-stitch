@@ -99,6 +99,53 @@ test.describe('X3 · 切片与 PDF 导出', () => {
     expect((text.match(/\/Type \/Page\s/g) || []).length).toBe(2);
   });
 
+  for (const [action, expectedDownloads] of [
+    ['双击下载 PDF', 1],
+    ['双击下载切片', 2],
+    ['连续按两次 Ctrl+S', 2]
+  ]) {
+    test(`${action}只启动一次导出`, async ({ page }) => {
+      await gotoApp(page);
+      await uploadScreens(page, 2);
+      await waitForResult(page);
+      await openSettings(page);
+      await page.getByLabel('切片高度').selectOption('2048');
+
+      const pdf = page.getByRole('button', { name: '下载 PDF' });
+      const slices = page.getByRole('button', { name: '下载 2 张切片' });
+      await expect(slices).toBeEnabled();
+      await page.evaluate(() => {
+        const nativeToBlob = HTMLCanvasElement.prototype.toBlob;
+        window.__exportEncodes = 0;
+        const hold = new Promise((resolve) => { window.__releaseExport = resolve; });
+        HTMLCanvasElement.prototype.toBlob = function toBlob(callback, ...args) {
+          window.__exportEncodes += 1;
+          nativeToBlob.call(this, (blob) => { void hold.then(() => callback(blob)); }, ...args);
+        };
+      });
+
+      const downloads = [];
+      page.on('download', (download) => downloads.push(download));
+      if (action === '连续按两次 Ctrl+S') {
+        await slices.focus();
+        await page.keyboard.press('Control+s');
+        await page.keyboard.press('Control+s');
+      } else {
+        await (expectedDownloads === 1 ? pdf : slices).dblclick();
+      }
+
+      expect(await page.evaluate(() => window.__exportEncodes)).toBe(1);
+      await expect(pdf).toBeDisabled();
+      await expect(slices).toBeDisabled();
+
+      await page.evaluate(() => window.__releaseExport());
+      await expect.poll(() => downloads.length).toBe(expectedDownloads);
+      await expect(pdf).toBeEnabled();
+      await expect(slices).toBeEnabled();
+      expect(await page.evaluate(() => window.__exportEncodes)).toBe(2);
+    });
+  }
+
   test('导出切片期间切换布局，所有切片仍来自同一次渲染', async ({ page }) => {
     await installEncodeHold(page);
     await gotoApp(page);

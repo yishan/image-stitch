@@ -45,12 +45,14 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     const { t } = useI18n();
     const canvasRef = useRef(null);
     const generationRef = useRef(0);
+    const exportInFlightRef = useRef(false);
     const outputUrlRef = useRef(null);
     const copyTimerRef = useRef(null);
     const advancedRef = useRef(null);
     const [sourceImages, setSourceImages] = useState(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
     const [canvasUrl, setCanvasUrl] = useState(null);
     const [output, setOutput] = useState(null);
     const [error, setError] = useState('');
@@ -286,8 +288,10 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     }, []);
 
     const handleDownload = useCallback(async () => {
-        if (!canvasUrl || !output || !canvasRef.current) return;
+        if (exportInFlightRef.current || !canvasUrl || !output || !canvasRef.current) return;
 
+        exportInFlightRef.current = true;
+        setIsExporting(true);
         try {
             const stamp = downloadStamp();
             const base = `stitch-${settings.direction}-${stamp}`;
@@ -314,18 +318,26 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
             setActionMessage('');
         } catch {
             setActionMessage(t('canvas.exportError'));
+        } finally {
+            exportInFlightRef.current = false;
+            setIsExporting(false);
         }
     }, [canvasUrl, exportSettings.quality, output, settings.direction, sliceHeight, t, triggerDownload]);
 
     const handleDownloadPdf = useCallback(async () => {
-        if (!canvasRef.current || !output) return;
+        if (exportInFlightRef.current || !canvasRef.current || !output) return;
 
+        exportInFlightRef.current = true;
+        setIsExporting(true);
         try {
             const blob = await canvasToPdfBlob(canvasRef.current, { sliceHeight });
             triggerDownload(blob, `stitch-${settings.direction}-${downloadStamp()}.pdf`);
             setActionMessage(t('canvas.pdfExported'));
         } catch {
             setActionMessage(t('canvas.pdfError'));
+        } finally {
+            exportInFlightRef.current = false;
+            setIsExporting(false);
         }
     }, [output, settings.direction, sliceHeight, t, triggerDownload]);
 
@@ -633,7 +645,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                         type="button"
                         className="btn btn--secondary"
                         onClick={handleDownloadPdf}
-                        disabled={!hasResult}
+                        disabled={!hasResult || isExporting}
                         title={sliceCount > 1 ? t('canvas.pdfTitlePages', { count: sliceCount }) : t('canvas.pdfTitle')}
                     >
                         {t('canvas.downloadPdf')}
@@ -642,7 +654,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                         type="button"
                         className="btn btn--primary"
                         onClick={handleDownload}
-                        disabled={!hasResult}
+                        disabled={!hasResult || isExporting}
                     >
                         <DownloadIcon />
                         {sliceCount > 1 ? t('canvas.downloadSlices', { count: sliceCount }) : t('canvas.downloadFormat', { format: outputFormat.label })}
