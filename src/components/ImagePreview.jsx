@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { normalizeTransform } from '../lib/imageTransform.js';
+import { getRotatedDimensions, normalizeTransform } from '../lib/imageTransform.js';
 import { useI18n } from '../i18n/index.jsx';
 import ImageAdjustments from './ImageAdjustments.jsx';
 import {
@@ -136,11 +136,19 @@ const ImagePreview = ({ images, max = 6, direction = 'vertical', gridPreset = 'a
         });
     }, []);
 
+    const effectiveDimensions = {};
+    for (const image of images) {
+        const natural = dimensions[image.id];
+        if (!natural) continue;
+        const { rotate } = normalizeTransform(image.transform);
+        effectiveDimensions[image.id] = getRotatedDimensions(natural.width, natural.height, rotate);
+    }
+
     const crossAxis = direction === 'vertical' ? 'width' : 'height';
-    const crossSizes = images.map((image) => dimensions[image.id]?.[crossAxis]).filter(Boolean);
+    const crossSizes = images.map((image) => effectiveDimensions[image.id]?.[crossAxis]).filter(Boolean);
     const maxCrossSize = crossSizes.length > 0 ? Math.max(...crossSizes) : 0;
     const smallerCount = maxCrossSize > 0
-        ? images.filter((image) => dimensions[image.id] && dimensions[image.id][crossAxis] < maxCrossSize).length
+        ? images.filter((image) => effectiveDimensions[image.id] && effectiveDimensions[image.id][crossAxis] < maxCrossSize).length
         : 0;
 
     const selectedIndex = images.findIndex((image) => image.id === selectedId);
@@ -202,7 +210,7 @@ const ImagePreview = ({ images, max = 6, direction = 'vertical', gridPreset = 'a
                                 key={image.id}
                                 image={image}
                                 index={index}
-                                dimensions={dimensions[image.id]}
+                                dimensions={effectiveDimensions[image.id]}
                                 selected={selectedId === image.id}
                                 onSelect={onSelectImage}
                                 onDimensions={handleDimensions}
