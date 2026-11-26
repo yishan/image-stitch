@@ -73,6 +73,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     const support = getExportSupport();
     const showWave = settings.showWave !== false;
     const previewMode = settings.previewMode === 'width' ? 'width' : 'fit';
+    const effectivePreviewMode = redactMode ? 'fit' : previewMode;
     const gridDirect = settings.direction === 'collage' && (settings.gridPreset || 'auto') !== 'auto';
     const qualityValue = Math.round((exportSettings.quality ?? DEFAULT_EXPORT_SETTINGS.quality) * 100);
     const sliceHeight = Number(exportSettings.sliceHeight) || 0;
@@ -372,10 +373,9 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
             setActionMessage('');
             return;
         }
-        updateSettings({ previewMode: 'fit' });
         setRedactMode(true);
         setActionMessage(t('canvas.maskMessage'));
-    }, [redactMode, updateSettings, t]);
+    }, [redactMode, t]);
 
     const showPreview = Boolean(canvasUrl) && !error;
     const hasResult = showPreview && !isGenerating;
@@ -464,8 +464,8 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                 <div className="segmented preview-modes" role="group" aria-label={t('canvas.previewAria')}>
                     <button
                         type="button"
-                        className={previewMode === 'fit' ? 'is-active' : ''}
-                        aria-pressed={previewMode === 'fit'}
+                        className={effectivePreviewMode === 'fit' ? 'is-active' : ''}
+                        aria-pressed={effectivePreviewMode === 'fit'}
                         disabled={redactMode}
                         onClick={() => updateSettings({ previewMode: 'fit' })}
                     >
@@ -473,8 +473,8 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     </button>
                     <button
                         type="button"
-                        className={previewMode === 'width' ? 'is-active' : ''}
-                        aria-pressed={previewMode === 'width'}
+                        className={effectivePreviewMode === 'width' ? 'is-active' : ''}
+                        aria-pressed={effectivePreviewMode === 'width'}
                         disabled={redactMode}
                         onClick={() => updateSettings({ previewMode: 'width' })}
                     >
@@ -568,7 +568,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     error={error ? t(`errors.${error.code}`, error.params) : ''}
                     canvasUrl={canvasUrl}
                     output={output}
-                    previewMode={previewMode}
+                    previewMode={effectivePreviewMode}
                     redactMode={redactMode}
                     onAddRedaction={addRedaction}
                     onRetry={() => setRetryKey((value) => value + 1)}

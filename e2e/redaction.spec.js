@@ -43,6 +43,52 @@ test('Mask instructions stay in the toolbar, not over the result', async ({ page
 test.describe('X4 · 本地打码', () => {
   runOnlyIn('desktop-chromium');
 
+  test('Mask stays fitted and drawable after settings undo', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 2);
+    await expectResultSize(page, 500, 3200);
+
+    const stage = page.locator('.stage');
+    const overlay = stage.locator('.redaction-layer');
+    const fit = page.getByRole('button', { name: '适应整图', exact: true });
+    const width = page.getByRole('button', { name: '适应宽度', exact: true });
+    const mask = page.getByRole('button', { name: /^打码/ });
+    const done = page.getByRole('button', { name: '完成', exact: true });
+
+    await width.click();
+    await expect(stage).toHaveAttribute('data-preview-mode', 'width');
+    await mask.click();
+    await expect(stage).toHaveAttribute('data-preview-mode', 'fit');
+    await page.keyboard.press('Control+z');
+    await stage.evaluate((element) => { element.scrollTop = 1000; });
+
+    await expect(mask).toHaveAttribute('aria-pressed', 'true');
+    await expect(stage).toHaveAttribute('data-preview-mode', 'fit');
+    await expect(fit).toHaveAttribute('aria-pressed', 'true');
+    await expect(width).toBeDisabled();
+    await expect(overlay).toBeInViewport();
+
+    const image = await stage.locator('img.result-image').boundingBox();
+    await page.mouse.move(image.x + image.width * 0.2, image.y + image.height * 0.2);
+    await page.mouse.down();
+    await page.mouse.move(image.x + image.width * 0.8, image.y + image.height * 0.4, { steps: 5 });
+    await page.mouse.up();
+    await expect(mask).toHaveText('打码（1）');
+
+    await waitForResult(page);
+    await done.click();
+    await expect(overlay).toHaveCount(0);
+    await expect(stage).toHaveAttribute('data-preview-mode', 'fit');
+
+    await page.keyboard.press('Control+Shift+z');
+    await expect(stage).toHaveAttribute('data-preview-mode', 'width');
+    await mask.click();
+    await expect(stage).toHaveAttribute('data-preview-mode', 'fit');
+    await done.click();
+    await expect(width).toHaveAttribute('aria-pressed', 'true');
+    await expect(stage).toHaveAttribute('data-preview-mode', 'width');
+  });
+
   test('马赛克框选后输出像素改变，撤销与清除可恢复', async ({ page }) => {
     await gotoApp(page);
     await uploadScreens(page, 4);
