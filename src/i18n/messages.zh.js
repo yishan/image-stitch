@@ -160,7 +160,6 @@ export default {
         downloadFormat: '下载 {format}',
         slicesExported: '已导出 {count} 张切片',
         pdfExported: '已导出 PDF',
-        maskMessage: '拖动结果图框选要打码的区域',
         exportError: '导出失败，请重试。',
         pdfError: 'PDF 导出失败，请重试。',
         copyError: '复制图片失败，请改用下载。',

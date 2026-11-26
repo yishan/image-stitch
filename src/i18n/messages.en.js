@@ -160,7 +160,6 @@ export default {
         downloadFormat: 'Download {format}',
         slicesExported: 'Exported {count} slices',
         pdfExported: 'Exported PDF',
-        maskMessage: 'Drag on the result to select masking areas',
         exportError: 'Export failed. Please retry.',
         pdfError: 'PDF export failed. Please retry.',
         copyError: 'Copy failed. Please use download instead.',

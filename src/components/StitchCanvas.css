@@ -657,8 +657,12 @@
 }
 
 .action-message {
-    color: var(--danger);
+    color: var(--ink-soft);
     font-size: var(--text-xs);
+}
+
+.action-message--error {
+    color: var(--danger);
 }
 
 .action-buttons {
