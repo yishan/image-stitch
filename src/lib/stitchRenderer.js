@@ -381,7 +381,14 @@ export const getRenderCacheStats = () => renderCache.stats;
 const edgePhase = (edge) => edge.phase ?? edge.from;
 
 const WAVE_STEP = 4;
-const waveOffsetAt = (pos, edge) => getWaveOffset(pos, edgePhase(edge), edge.amplitude, edge.wavelength);
+const waveOffsetAt = (pos, edge) => {
+    const offset = getWaveOffset(pos, edgePhase(edge), edge.amplitude, edge.wavelength);
+    if (!edge.taper) return offset;
+
+    // Meet straight edges and perpendicular seams at their original corners.
+    const fade = Math.max(edge.wavelength / 4, edge.amplitude * 2);
+    return offset * Math.min(1, (pos - edge.from) / fade, (edge.to - pos) / fade);
+};
 
 const traceWaveLine = (ctx, seam, offset = 0) => {
     const { orientation, x, y, from, to } = seam;
@@ -433,58 +440,50 @@ const drawRippleSeamShadows = (ctx, seams, totalWidth, totalHeight) => {
     ctx.restore();
 };
 
-const addWaveClipEdge = (ctx, edge, fixed, start, end) => {
-    const vertical = edge.orientation === 'vertical';
+const addWaveClipSide = (ctx, edges, vertical, fixed, start, end) => {
     const lineTo = (along, across) => (
         vertical ? ctx.lineTo(across, along) : ctx.lineTo(along, across)
     );
     const reverse = end < start;
-    const from = Math.max(edge.from, Math.min(start, end));
-    const to = Math.min(edge.to, Math.max(start, end));
-    if (from >= to) {
-        lineTo(end, fixed);
-        return;
-    }
+    let cursor = start;
+    for (let i = 0; i < edges.length; i += 1) {
+        const edge = edges[reverse ? edges.length - 1 - i : i];
+        const from = Math.max(edge.from, Math.min(start, end));
+        const to = Math.min(edge.to, Math.max(start, end));
+        if (from >= to) continue;
 
-    const waveStart = reverse ? to : from;
-    const waveEnd = reverse ? from : to;
-    if (start !== waveStart) lineTo(waveStart, fixed);
+        const waveStart = reverse ? to : from;
+        const waveEnd = reverse ? from : to;
+        if (cursor !== waveStart) lineTo(waveStart, fixed);
 
-    // Sample both sides at the same coordinates, even when traced in reverse.
-    const steps = Math.ceil((to - from) / WAVE_STEP);
-    const waveBase = vertical ? edge.x : edge.y;
-    for (let step = 0; step <= steps; step += 1) {
-        const index = reverse ? steps - step : step;
-        const pos = Math.min(from + index * WAVE_STEP, to);
-        lineTo(pos, waveBase + waveOffsetAt(pos, edge));
-    }
+        // Sample both sides at the same coordinates, even when traced in reverse.
+        const steps = Math.ceil((to - from) / WAVE_STEP);
+        for (let step = 0; step <= steps; step += 1) {
+            const index = reverse ? steps - step : step;
+            const pos = Math.min(from + index * WAVE_STEP, to);
+            lineTo(pos, (vertical ? edge.x : edge.y) + waveOffsetAt(pos, edge));
+        }
 
-    if (end !== waveEnd) {
-        lineTo(waveEnd, fixed);
-        lineTo(end, fixed);
+        if (waveEnd !== end) lineTo(waveEnd, fixed);
+        cursor = waveEnd;
     }
+    if (cursor !== end) lineTo(end, fixed);
 };
 
-const createImageClipPath = (ctx, placement) => {
-    const { x, y, width, height, topEdge, rightEdge, bottomEdge, leftEdge } = placement;
+const createImageClipPath = (ctx, placement, { top, right, bottom, left }) => {
+    const { x, y, width, height } = placement;
     const rightX = x + width;
     const bottomY = y + height;
 
     ctx.beginPath();
-    const startsOnWave = topEdge && topEdge.from <= x && x < topEdge.to;
-    ctx.moveTo(x, startsOnWave ? topEdge.y + waveOffsetAt(x, topEdge) : y);
+    const first = top[0];
+    const startsOnWave = first && first.from <= x && x < first.to;
+    ctx.moveTo(x, startsOnWave ? first.y + waveOffsetAt(x, first) : y);
 
-    if (topEdge) addWaveClipEdge(ctx, topEdge, y, x, rightX);
-    else ctx.lineTo(rightX, y);
-
-    if (rightEdge) addWaveClipEdge(ctx, rightEdge, rightX, y, bottomY);
-    else ctx.lineTo(rightX, bottomY);
-
-    if (bottomEdge) addWaveClipEdge(ctx, bottomEdge, bottomY, rightX, x);
-    else ctx.lineTo(x, bottomY);
-
-    if (leftEdge) addWaveClipEdge(ctx, leftEdge, x, bottomY, y);
-    else ctx.lineTo(x, y);
+    addWaveClipSide(ctx, top, false, y, x, rightX);
+    addWaveClipSide(ctx, right, true, rightX, y, bottomY);
+    addWaveClipSide(ctx, bottom, false, bottomY, rightX, x);
+    addWaveClipSide(ctx, left, true, x, bottomY, y);
 
     ctx.closePath();
 };
@@ -511,15 +510,11 @@ const drawPlacementImage = (ctx, placement, grow = 0) => {
 
 const drawRippleStitchedImages = (ctx, placements) => {
     placements.forEach((placement) => {
-        const overlap = Math.max(
-            placement.leftEdge?.amplitude ?? 0,
-            placement.rightEdge?.amplitude ?? 0,
-            placement.topEdge?.amplitude ?? 0,
-            placement.bottomEdge?.amplitude ?? 0
-        );
+        const { topEdges: top = [], rightEdges: right = [], bottomEdges: bottom = [], leftEdges: left = [] } = placement;
+        const overlap = Math.max(0, ...[...top, ...right, ...bottom, ...left].map((edge) => edge.amplitude));
 
         ctx.save();
-        createImageClipPath(ctx, placement);
+        createImageClipPath(ctx, placement, { top, right, bottom, left });
         ctx.clip();
         drawPlacementImage(ctx, placement, overlap);
         ctx.restore();

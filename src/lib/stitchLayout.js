@@ -57,7 +57,7 @@ export const getSeamStrokeMetrics = (totalWidth, totalHeight) => {
     return { lineWidth, offset };
 };
 
-const createEdge = ({ orientation, x, y, from, to, phase = from, amplitude, wavelength }) => ({
+const createEdge = ({ orientation, x, y, from, to, phase = from, amplitude, wavelength, taper = false }) => ({
     orientation,
     x,
     y,
@@ -65,7 +65,8 @@ const createEdge = ({ orientation, x, y, from, to, phase = from, amplitude, wave
     to,
     phase,
     amplitude,
-    wavelength
+    wavelength,
+    taper
 });
 
 const sumWidths = (items, gap) => (
@@ -288,8 +289,8 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
                     width: draw.width,
                     height: draw.height
                 }),
-                leftEdge,
-                rightEdge
+                leftEdges: leftEdge ? [leftEdge] : [],
+                rightEdges: rightEdge ? [rightEdge] : []
             });
 
             cursorX += draw.width + gap;
@@ -302,116 +303,79 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
         const splitIndex = images.length === 4 ? 2 : 3;
         const row1 = images.slice(0, splitIndex);
         const row2 = images.slice(splitIndex, splitIndex * 2);
-        const rows = [row1, row2].filter((row) => row.length > 0);
         const row1Height = maxOf(row1, 'height');
         const row2Height = maxOf(row2, 'height');
-        const contentWidth = Math.max(sumWidths(row1, gap), sumWidths(row2, gap));
-        const contentHeight = rows.length > 1 ? row1Height + gap + row2Height : row1Height;
+        const row1Width = sumWidths(row1, gap);
+        const row2Width = sumWidths(row2, gap);
+        const contentWidth = Math.max(row1Width, row2Width);
+        const contentHeight = row2.length > 0 ? row1Height + gap + row2Height : row1Height;
         const totalWidth = contentWidth + margin * 2;
         const totalHeight = contentHeight + margin * 2;
         const baseMetrics = getRippleMetrics(totalWidth, totalHeight);
         const amplitude = baseMetrics.amplitude * strength;
         const { wavelength } = baseMetrics;
-        const row1Width = sumWidths(row1, gap);
-        const row2Width = sumWidths(row2, gap);
-        const row1X = margin + (contentWidth - row1Width) / 2;
-        const row2X = margin + (contentWidth - row2Width) / 2;
-        const row1Y = margin;
-        const row2Y = margin + row1Height + gap;
-        const seamY = row1Y + row1Height;
+        const seamY = margin + row1Height;
+        const lowerY = seamY + gap;
 
-        const placeRow = (row, rowIndex) => {
-            const rowHeight = maxOf(row, 'height');
-            const rowX = rowIndex === 0 ? row1X : row2X;
-            const rowY = rowIndex === 0 ? row1Y : row2Y;
-            let cursorX = rowX;
-
-            row.forEach((item, itemIndex) => {
-                const x = cursorX;
-                const y = rowY + (rowHeight - item.height) / 2;
-                const isFirstRow = rowIndex === 0;
-                const leftEdge = showWave && itemIndex > 0
-                    ? createEdge({
-                        orientation: 'vertical',
-                        x,
-                        from: rowY,
-                        to: rowY + rowHeight,
-                        phase: rowY,
-                        amplitude,
-                        wavelength
-                    })
-                    : null;
-                const rightEdge = showWave && itemIndex < row.length - 1
-                    ? createEdge({
-                        orientation: 'vertical',
-                        x: x + item.width,
-                        from: rowY,
-                        to: rowY + rowHeight,
-                        phase: rowY,
-                        amplitude,
-                        wavelength
-                    })
-                    : null;
-                const topEdge = showWave && !isFirstRow && row.length > 0
-                    ? createEdge({
-                        orientation: 'horizontal',
-                        y: seamY,
-                        from: x,
-                        to: x + item.width,
-                        phase: margin,
-                        amplitude,
-                        wavelength
-                    })
-                    : null;
-                const bottomEdge = showWave && isFirstRow && row2.length > 0
-                    ? createEdge({
-                        orientation: 'horizontal',
-                        y: seamY,
-                        from: x,
-                        to: x + item.width,
-                        phase: margin,
-                        amplitude,
-                        wavelength
-                    })
-                    : null;
-
-                if (leftEdge) seamShadows.push(leftEdge);
-
-                placements.push({
+        const placeRow = (row, rowWidth, rowHeight, rowY) => {
+            let x = margin + (contentWidth - rowWidth) / 2;
+            return row.map((item) => {
+                const placement = {
                     ...placementOf(item, {
                         x,
-                        y,
+                        y: rowY + (rowHeight - item.height) / 2,
                         width: item.width,
                         height: item.height
                     }),
-                    topEdge,
-                    rightEdge,
-                    bottomEdge,
-                    leftEdge
-                });
-
-                cursorX += item.width + gap;
+                    topEdges: [],
+                    rightEdges: [],
+                    bottomEdges: [],
+                    leftEdges: []
+                };
+                x += item.width + gap;
+                return placement;
             });
         };
 
-        placeRow(row1, 0);
-        if (row2.length > 0) placeRow(row2, 1);
+        const upper = placeRow(row1, row1Width, row1Height, margin);
+        const lower = placeRow(row2, row2Width, row2Height, lowerY);
+        placements.push(...upper, ...lower);
 
-        if (showWave && row2.length > 0) {
-            // One continuous seam shadow, clipped to where both rows overlap.
-            const seamStart = Math.max(row1X, row2X);
-            const seamEnd = Math.min(row1X + row1Width, row2X + row2Width);
-            if (seamEnd > seamStart) {
-                seamShadows.push(createEdge({
-                    orientation: 'horizontal',
-                    y: seamY,
-                    from: seamStart,
-                    to: seamEnd,
-                    phase: margin,
-                    amplitude,
-                    wavelength
-                }));
-            }
+        if (showWave) {
+            const linkNeighbors = (a, b, orientation, phase) => {
+                const vertical = orientation === 'vertical';
+                const from = vertical ? Math.max(a.y, b.y) : Math.max(a.x, b.x);
+                const to = vertical
+                    ? Math.min(a.y + a.height, b.y + b.height)
+                    : Math.min(a.x + a.width, b.x + b.width);
+                if (to <= from) return;
+
+                const shared = { orientation, from, to, phase, amplitude, wavelength, taper: true };
+                if (vertical) {
+                    const left = createEdge({ ...shared, x: b.x });
+                    a.rightEdges.push(createEdge({ ...shared, x: a.x + a.width }));
+                    b.leftEdges.push(left);
+                    seamShadows.push(left);
+                } else {
+                    const bottom = createEdge({ ...shared, y: a.y + a.height });
+                    a.bottomEdges.push(bottom);
+                    b.topEdges.push(createEdge({ ...shared, y: b.y }));
+                    seamShadows.push(bottom);
+                }
+            };
+
+            [upper, lower].forEach((row, index) => {
+                row.slice(1).forEach((placement, i) => {
+                    linkNeighbors(row[i], placement, 'vertical', index === 0 ? margin : lowerY);
+                });
+            });
+
+            // Only the tallest placements reach the row divider. Intersect
+            // each pair separately so shorter items and gaps split the seam.
+            const topNeighbors = lower.filter((placement) => placement.y === lowerY);
+            upper.filter(({ y, height }) => y + height === seamY).forEach((placement) => {
+                topNeighbors.forEach((neighbor) => linkNeighbors(placement, neighbor, 'horizontal', margin));
+            });
         }
 
         return { totalWidth, totalHeight, placements, seamShadows, gap, margin };
@@ -469,8 +433,8 @@ export const createStitchPlan = (loadedImages, settings = {}) => {
                 width: draw.width,
                 height: draw.height
             }),
-            topEdge,
-            bottomEdge
+            topEdges: topEdge ? [topEdge] : [],
+            bottomEdges: bottomEdge ? [bottomEdge] : []
         });
 
         cursorY += draw.height + gap;
