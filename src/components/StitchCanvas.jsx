@@ -24,6 +24,7 @@ import StitchStage from './StitchStage.jsx';
 import './StitchCanvas.css';
 
 const DIRECTIONS = ['horizontal', 'vertical', 'collage'];
+const SIZE_ENCODE_DELAY_MS = 500;
 
 const changesSettings = (current, patch) => (
     Object.entries(patch).some(([key, value]) => !Object.is(current[key], value))
@@ -45,13 +46,11 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     const { t } = useI18n();
     const canvasRef = useRef(null);
     const generationRef = useRef(0);
-    const outputUrlRef = useRef(null);
     const copyTimerRef = useRef(null);
     const advancedRef = useRef(null);
     const [sourceImages, setSourceImages] = useState(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [canvasUrl, setCanvasUrl] = useState(null);
     const [output, setOutput] = useState(null);
     const [error, setError] = useState('');
     const [actionMessage, setActionMessage] = useState('');
@@ -117,7 +116,6 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
 
     useEffect(() => () => {
         generationRef.current += 1;
-        if (outputUrlRef.current) URL.revokeObjectURL(outputUrlRef.current);
         if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
         clearRenderCache();
     }, []);
@@ -132,6 +130,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
         if (images.length === 0) return undefined;
 
         let cancelled = false;
+        let sizeTimer;
         const generation = ++generationRef.current;
         const isCurrentGeneration = () => !cancelled && generation === generationRef.current;
 
@@ -154,7 +153,6 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     throw error;
                 }
 
-                const currentFormat = getExportFormat(renderSettings.export.format);
                 const previewPlan = createStitchPlan(loadedImages, renderSettings);
                 const preliminary = getExportDimensions(
                     previewPlan.totalWidth,
@@ -166,39 +164,45 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     : DEFAULT_OUTPUT_LIMITS.maxPixels;
                 const plan = renderStitch(canvas, loadedImages, renderSettings, { maxPixels });
                 applyRedactions(canvas, redactions);
-                const blob = await canvasToBlob(
-                    canvas,
-                    currentFormat.mime,
-                    currentFormat.lossy ? renderSettings.export.quality : undefined
-                );
-                if (!isCurrentGeneration()) return;
 
                 if (import.meta.env.DEV) {
-                    const encodedAt = performance.now();
+                    const drawnAt = performance.now();
                     window.__stitchDebug = {
                         ...(window.__stitchDebug || {}),
                         lastRender: {
                             decode: Math.round(decodedAt - startedAt),
-                            encode: Math.round(encodedAt - decodedAt),
-                            total: Math.round(encodedAt - startedAt),
+                            draw: Math.round(drawnAt - decodedAt),
+                            total: Math.round(drawnAt - startedAt),
                             width: plan.width,
                             height: plan.height,
-                            format: currentFormat.id
+                            format: plan.format.id
                         }
                     };
                 }
 
-                const nextUrl = URL.createObjectURL(blob);
-                const previousUrl = outputUrlRef.current;
-                outputUrlRef.current = nextUrl;
-                setCanvasUrl(nextUrl);
-                if (previousUrl) URL.revokeObjectURL(previousUrl);
+                let encoding;
+                const getBlob = () => {
+                    if (!encoding) {
+                        encoding = canvasToBlob(
+                            canvas,
+                            plan.format.mime,
+                            plan.format.lossy ? renderSettings.export.quality : undefined
+                        );
+                        encoding.then((blob) => {
+                            if (isCurrentGeneration()) {
+                                setOutput((current) => (
+                                    current?.getBlob === getBlob ? { ...current, bytes: blob.size } : current
+                                ));
+                            }
+                        }, () => { encoding = null; });
+                    }
+                    return encoding;
+                };
                 setOutput({
                     width: plan.width,
                     height: plan.height,
                     scale: plan.scale,
-                    bytes: blob.size,
-                    pngBlob: blob.type === 'image/png' ? blob : null,
+                    getBlob,
                     format: plan.format,
                     sizeMode: plan.exportSettings?.sizeMode,
                     customEdge: plan.exportSettings?.customEdge,
@@ -206,6 +210,8 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     maxPixels: plan.maxPixels,
                     flattened: plan.flattened
                 });
+                // Give the preview a chance to paint and skip size work for superseded edits.
+                sizeTimer = window.setTimeout(getBlob, SIZE_ENCODE_DELAY_MS);
             } catch (generationError) {
                 if (isCurrentGeneration()) {
                     setError({ code: generationError.code || 'render', params: generationError.params });
@@ -222,6 +228,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
         return () => {
             cancelled = true;
             window.clearTimeout(timer);
+            window.clearTimeout(sizeTimer);
             if (generationRef.current === generation) generationRef.current += 1;
         };
     }, [images, renderSettings, redactions, retryKey]);
@@ -273,20 +280,18 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
         onResetSettings();
     }, [onResetSettings]);
 
-    const triggerDownload = useCallback((blobOrUrl, filename) => {
-        const url = typeof blobOrUrl === 'string' ? blobOrUrl : URL.createObjectURL(blobOrUrl);
+    const triggerDownload = useCallback((blob, filename) => {
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.download = filename;
         link.href = url;
         link.click();
         link.remove();
-        if (typeof blobOrUrl !== 'string') {
-            window.setTimeout(() => URL.revokeObjectURL(url), 2000);
-        }
+        window.setTimeout(() => URL.revokeObjectURL(url), 2000);
     }, []);
 
     const handleDownload = useCallback(async () => {
-        if (!canvasUrl || !output || !canvasRef.current) return;
+        if (!output || !canvasRef.current) return;
 
         try {
             const stamp = downloadStamp();
@@ -310,12 +315,12 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                 return;
             }
 
-            triggerDownload(canvasUrl, `${base}.${output.format.ext}`);
+            triggerDownload(await output.getBlob(), `${base}.${output.format.ext}`);
             setActionMessage('');
         } catch {
             setActionMessage(t('canvas.exportError'));
         }
-    }, [canvasUrl, exportSettings.quality, output, settings.direction, sliceHeight, t, triggerDownload]);
+    }, [exportSettings.quality, output, settings.direction, sliceHeight, t, triggerDownload]);
 
     const handleDownloadPdf = useCallback(async () => {
         if (!canvasRef.current || !output) return;
@@ -330,16 +335,18 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     }, [output, settings.direction, sliceHeight, t, triggerDownload]);
 
     const handleCopy = async () => {
-        if (!canvasRef.current) return;
+        if (!output || !canvasRef.current) return;
 
         try {
             if (!navigator.clipboard?.write || !window.ClipboardItem) {
                 throw Object.assign(new Error('Copy unsupported'), { code: 'copyUnsupported' });
             }
 
-            const blob = output?.pngBlob ?? await canvasToBlob(canvasRef.current, 'image/png');
+            const png = output.format.mime === 'image/png'
+                ? output.getBlob()
+                : canvasToBlob(canvasRef.current, 'image/png');
             await navigator.clipboard.write([
-                new window.ClipboardItem({ [blob.type]: blob })
+                new window.ClipboardItem({ 'image/png': png })
             ]);
             setIsCopied(true);
             setActionMessage('');
@@ -377,8 +384,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
         setActionMessage(t('canvas.maskMessage'));
     }, [redactMode, updateSettings, t]);
 
-    const showPreview = Boolean(canvasUrl) && !error;
-    const hasResult = showPreview && !isGenerating;
+    const hasResult = Boolean(output) && !error && !isGenerating;
     const outputFormat = output?.format || format;
     const sliceCount = output ? getSliceRanges(output.height, sliceHeight).length : 1;
 
@@ -566,7 +572,6 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     canvasRef={canvasRef}
                     isGenerating={isGenerating}
                     error={error ? t(`errors.${error.code}`, error.params) : ''}
-                    canvasUrl={canvasUrl}
                     output={output}
                     previewMode={previewMode}
                     redactMode={redactMode}

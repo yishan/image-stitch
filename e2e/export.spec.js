@@ -6,7 +6,8 @@ import {
   outputMeta,
   runOnlyIn,
   selectFormat,
-  uploadScreens
+  uploadScreens,
+  waitForResult
 } from './helpers/app.js';
 import {
   downloadAndRead,
@@ -33,6 +34,43 @@ test.describe('导出格式', () => {
     expect(file.bytes.length).toBeGreaterThan(1024);
     expect(pngSize(file.bytes)).toEqual({ width: 500, height: 4800 });
     await expect(outputMeta(page)).toContainText('PNG');
+  });
+
+  test('the preview paints before encoding and stale encodes cannot replace its byte count', async ({ page }) => {
+    await gotoApp(page);
+    await uploadScreens(page, 2);
+    await expectResultSize(page, 500, 3200);
+    const size = page.locator('.output-meta__size');
+    await expect(size).toHaveText(/^\d/);
+    await page.evaluate(() => {
+      const original = HTMLCanvasElement.prototype.toBlob;
+      window.heldEncodes = {};
+      HTMLCanvasElement.prototype.toBlob = function (callback, ...args) {
+        const width = this.width;
+        const busy = this.closest('.stage')?.getAttribute('aria-busy');
+        return original.call(this, (blob) => {
+          window.heldEncodes[width] = { busy, release: () => callback(blob) };
+        }, ...args);
+      };
+    });
+
+    await chooseDirection(page, '横向');
+    await expectResultSize(page, 1000, 1600);
+    await page.waitForFunction(() => window.heldEncodes[1000]);
+    expect(await page.evaluate(() => window.heldEncodes[1000].busy)).toBe('false');
+    await expect(size).toHaveCount(0);
+
+    await chooseDirection(page, '纵向');
+    await expectResultSize(page, 500, 3200);
+    await page.evaluate(() => window.heldEncodes[1000].release());
+    await page.waitForFunction(() => window.heldEncodes[500]);
+    await expect(size).toHaveCount(0);
+
+    const filePromise = downloadAndRead(page, '下载 PNG');
+    await page.evaluate(() => window.heldEncodes[500].release());
+    const { bytes } = await filePromise;
+    expect(pngSize(bytes)).toEqual({ width: 500, height: 3200 });
+    await expect(size).toHaveText(`${Math.max(1, Math.round(bytes.length / 1024))} KB`);
   });
 
   test('Copy reuses the current PNG output and still copies PNG for JPEG exports', async ({ context, page }) => {
@@ -70,6 +108,8 @@ test.describe('导出格式', () => {
     expect((await copy([])).equals(horizontal.bytes)).toBe(true);
 
     await selectFormat(page, 'JPEG');
+    await waitForResult(page);
+    await expect(page.locator('.output-meta__size')).toHaveText(/^\d/);
     expect(pngSize(await copy(['image/png']))).toEqual({ width: 1000, height: 1600 });
   });
 

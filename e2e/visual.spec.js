@@ -7,6 +7,7 @@ import {
   uploadScreens,
   waitForResult
 } from './helpers/app.js';
+import { downloadAndRead, pngSize } from './helpers/downloads.js';
 
 /**
  * Screenshot the exported result at its natural size in a blank tab. This
@@ -14,17 +15,8 @@ import {
  * keeps the baselines stable across macOS and the Linux CI runner.
  */
 const captureNaturalResult = async (page) => {
-  const result = await page.locator('img.result-image').evaluate(async (image) => {
-    const response = await fetch(image.src);
-    const blob = await response.blob();
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
-    return { dataUrl, width: image.naturalWidth, height: image.naturalHeight };
-  });
+  const { bytes } = await downloadAndRead(page, '下载 PNG');
+  const result = { ...pngSize(bytes), dataUrl: `data:image/png;base64,${bytes.toString('base64')}` };
 
   const shot = await page.context().newPage();
   await shot.setViewportSize({ width: result.width, height: result.height });

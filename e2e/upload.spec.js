@@ -19,7 +19,7 @@ test.describe('上传与编辑', () => {
     await expect(page.getByRole('heading', { name: '已选图片' })).toBeVisible();
     await expect(page.locator('.thumb')).toHaveCount(3);
     await expect(page.locator('.preview-count')).toHaveText('3 / 6');
-    await expect(page.locator('img.result-image')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('canvas.result-image')).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('.stage')).toHaveAttribute('aria-busy', 'false');
   });
 

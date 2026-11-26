@@ -28,6 +28,7 @@ const installEncodeHold = (page) => page.addInitScript(() => {
 
 /** Start an export, switch to 横向 while its first slice is encoding, then let it finish. */
 const changeLayoutDuringExport = async (page, buttonName) => {
+  await expect(page.locator('.output-meta__size')).toHaveText(/^\d/);
   await page.evaluate(() => { window.__holdNextEncode = true; });
   await page.getByRole('button', { name: buttonName }).click();
   await page.waitForFunction(() => typeof window.__releaseEncode === 'function');

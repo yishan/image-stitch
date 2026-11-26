@@ -26,7 +26,7 @@ test.describe('移动端（Pixel 7）', () => {
     );
     expect(horizontalOverflow).toBeLessThanOrEqual(1);
 
-    const imageBox = await page.locator('img.result-image').boundingBox();
+    const imageBox = await page.locator('canvas.result-image').boundingBox();
     expect(imageBox.width).toBeLessThanOrEqual(viewport.width);
 
     // Settings disclosure behaves as a bottom sheet on phones.
@@ -105,9 +105,9 @@ test.describe('移动端（Pixel 7）', () => {
     await redactButton.click();
     const overlay = page.locator('.redaction-layer');
     await expect(overlay).toBeVisible();
-    await page.locator('img.result-image').scrollIntoViewIfNeeded();
+    await page.locator('canvas.result-image').scrollIntoViewIfNeeded();
 
-    const imageBox = await page.locator('img.result-image').boundingBox();
+    const imageBox = await page.locator('canvas.result-image').boundingBox();
     const x = imageBox.x + imageBox.width * 0.2;
     const y = imageBox.y + imageBox.height * 0.2;
     const client = await page.context().newCDPSession(page);

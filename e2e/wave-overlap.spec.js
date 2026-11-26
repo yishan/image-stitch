@@ -60,9 +60,8 @@ test.describe('Wave seam overlap', () => {
         await expectResultSize(page, width, height);
         const { bytes: wave } = await downloadAndRead(page, '下载 PNG');
 
-        const previous = await page.locator('img.result-image').getAttribute('src');
         await page.getByRole('checkbox', { name: '波浪接缝' }).uncheck();
-        await expect(page.locator('img.result-image')).not.toHaveAttribute('src', previous);
+        await expectResultSize(page, width, height);
         const { bytes: straight } = await downloadAndRead(page, '下载 PNG');
 
         await testInfo.attach('wave-export', { body: wave, contentType: 'image/png' });

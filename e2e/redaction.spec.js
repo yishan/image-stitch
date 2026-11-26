@@ -9,12 +9,8 @@ import {
 } from './helpers/app.js';
 import { downloadAndRead } from './helpers/downloads.js';
 
-const regionHash = (page) => page.locator('img.result-image').evaluate((image) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = image.naturalWidth;
-  canvas.height = image.naturalHeight;
+const regionHash = (page) => page.locator('canvas.result-image').evaluate((canvas) => {
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(image, 0, 0);
   const data = ctx.getImageData(0, 0, Math.min(300, canvas.width), Math.min(300, canvas.height)).data;
   let hash = 0;
   for (let index = 0; index < data.length; index += 13) {
@@ -35,7 +31,7 @@ test('Mask instructions stay in the toolbar, not over the result', async ({ page
   await expect(hint).toBeVisible();
   await expect(hint).not.toBeEmpty();
   await expect(overlay).toBeEmpty();
-  const imageBox = await page.locator('img.result-image').boundingBox();
+  const imageBox = await page.locator('canvas.result-image').boundingBox();
   const hintBox = await hint.boundingBox();
   expect(hintBox.y + hintBox.height).toBeLessThanOrEqual(imageBox.y);
 });
@@ -55,7 +51,7 @@ test.describe('X4 · 本地打码', () => {
     const overlay = page.locator('.redaction-layer');
     await expect(overlay).toBeVisible();
 
-    const imageBox = await page.locator('img.result-image').boundingBox();
+    const imageBox = await page.locator('canvas.result-image').boundingBox();
     const startX = imageBox.x + imageBox.width * 0.1;
     const startY = imageBox.y + imageBox.height * 0.1;
     const endX = imageBox.x + imageBox.width * 0.4;
@@ -88,7 +84,7 @@ test.describe('X4 · 本地打码', () => {
     await waitForResult(page);
     await page.getByRole('button', { name: /^打码/ }).click();
 
-    const imageBox = await page.locator('img.result-image').boundingBox();
+    const imageBox = await page.locator('canvas.result-image').boundingBox();
     await page.mouse.move(imageBox.x + 40, imageBox.y + 40);
     await page.mouse.down();
     await page.mouse.move(imageBox.x + 160, imageBox.y + 160, { steps: 5 });
@@ -122,21 +118,15 @@ test.describe('X4 · 本地打码', () => {
       input.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    const originalSrc = await page.locator('img.result-image').getAttribute('src');
-    const imageBox = await page.locator('img.result-image').boundingBox();
+    const imageBox = await page.locator('canvas.result-image').boundingBox();
     await page.mouse.move(imageBox.x + imageBox.width * 0.1, imageBox.y + imageBox.height * 0.1);
     await page.mouse.down();
     await page.mouse.move(imageBox.x + imageBox.width * 0.4, imageBox.y + imageBox.height * 0.35, { steps: 8 });
     await page.mouse.up();
-    await expect(page.locator('img.result-image')).not.toHaveAttribute('src', originalSrc);
     await waitForResult(page);
 
-    const pixel = await page.locator('img.result-image').evaluate((image) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
+    const pixel = await page.locator('canvas.result-image').evaluate((canvas) => {
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(image, 0, 0);
       return Array.from(ctx.getImageData(
         Math.floor(canvas.width * 0.25),
         Math.floor(canvas.height * 0.225),
@@ -154,7 +144,7 @@ test.describe('X4 · 本地打码', () => {
     await page.getByRole('button', { name: /^打码/ }).click();
     await page.getByRole('button', { name: '色块', exact: true }).click();
 
-    const imageBox = await page.locator('img.result-image').boundingBox();
+    const imageBox = await page.locator('canvas.result-image').boundingBox();
     const moveToOutputPixel = (x, y) => page.mouse.move(
       imageBox.x + x / 500 * imageBox.width,
       imageBox.y + y / 1600 * imageBox.height
