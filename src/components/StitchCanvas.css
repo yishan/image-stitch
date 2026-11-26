@@ -676,6 +676,7 @@
 
 @media (max-width: 900px) {
     .stitch {
+        grid-template-columns: minmax(0, 1fr);
         padding: var(--space-4) var(--space-4) 0;
         gap: var(--space-3);
     }
@@ -733,6 +734,13 @@
         order: -1;
         width: 100%;
         justify-content: flex-end;
+        flex-wrap: wrap;
+        row-gap: var(--space-1);
+    }
+
+    .output-meta__size {
+        white-space: normal;
+        text-align: right;
     }
 
     .action-buttons {
