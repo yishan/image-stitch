@@ -92,18 +92,12 @@ const imagesSignature = (images) => images
   .map((image) => `${image.id}:${JSON.stringify(normalizeTransform(image.transform))}`)
   .join('|');
 
-const restoreImageFile = (record) => {
-  const file = new File([record.blob], record.name, {
-    type: record.type,
-    lastModified: record.lastModified
-  });
-  return {
-    id: record.id,
-    file,
-    url: URL.createObjectURL(file),
-    transform: record.transform
-  };
-};
+const restoreImageFile = ({ id, file, transform }) => ({
+  id,
+  file,
+  url: URL.createObjectURL(file),
+  transform
+});
 
 function App() {
   const { t, locale } = useI18n();
