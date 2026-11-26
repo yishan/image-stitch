@@ -54,7 +54,8 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     const [canvasUrl, setCanvasUrl] = useState(null);
     const [output, setOutput] = useState(null);
     const [error, setError] = useState('');
-    const [actionMessage, setActionMessage] = useState('');
+    const [actionMessage, setActionMessage] = useState(null);
+    const actionMessageText = actionMessage ? t(actionMessage.key, actionMessage.params) : '';
     const [isCopied, setIsCopied] = useState(false);
     const [retryKey, setRetryKey] = useState(0);
     const [redactions, setRedactions] = useState([]);
@@ -136,7 +137,7 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
         const isCurrentGeneration = () => !cancelled && generation === generationRef.current;
 
         setError('');
-        setActionMessage('');
+        setActionMessage(null);
         setIsGenerating(true);
 
         const generateImage = async () => {
@@ -306,16 +307,16 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                     );
                     await new Promise((resolve) => window.setTimeout(resolve, 150));
                 }
-                setActionMessage(t('canvas.slicesExported', { count: slices.length }));
+                setActionMessage({ key: 'canvas.slicesExported', params: { count: slices.length }, tone: 'success' });
                 return;
             }
 
             triggerDownload(canvasUrl, `${base}.${output.format.ext}`);
-            setActionMessage('');
+            setActionMessage(null);
         } catch {
-            setActionMessage(t('canvas.exportError'));
+            setActionMessage({ key: 'canvas.exportError', tone: 'error' });
         }
-    }, [canvasUrl, exportSettings.quality, output, settings.direction, sliceHeight, t, triggerDownload]);
+    }, [canvasUrl, exportSettings.quality, output, settings.direction, sliceHeight, triggerDownload]);
 
     const handleDownloadPdf = useCallback(async () => {
         if (!canvasRef.current || !output) return;
@@ -323,11 +324,11 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
         try {
             const blob = await canvasToPdfBlob(canvasRef.current, { sliceHeight });
             triggerDownload(blob, `stitch-${settings.direction}-${downloadStamp()}.pdf`);
-            setActionMessage(t('canvas.pdfExported'));
+            setActionMessage({ key: 'canvas.pdfExported', tone: 'success' });
         } catch {
-            setActionMessage(t('canvas.pdfError'));
+            setActionMessage({ key: 'canvas.pdfError', tone: 'error' });
         }
-    }, [output, settings.direction, sliceHeight, t, triggerDownload]);
+    }, [output, settings.direction, sliceHeight, triggerDownload]);
 
     const handleCopy = async () => {
         if (!canvasRef.current) return;
@@ -342,11 +343,14 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                 new window.ClipboardItem({ [blob.type]: blob })
             ]);
             setIsCopied(true);
-            setActionMessage('');
+            setActionMessage(null);
             if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
             copyTimerRef.current = window.setTimeout(() => setIsCopied(false), 1500);
         } catch (copyError) {
-            setActionMessage(t(copyError.code === 'copyUnsupported' ? 'canvas.copyUnsupported' : 'canvas.copyError'));
+            setActionMessage({
+                key: copyError.code === 'copyUnsupported' ? 'canvas.copyUnsupported' : 'canvas.copyError',
+                tone: 'error'
+            });
         }
     };
 
@@ -367,15 +371,14 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
     }, []);
 
     const toggleRedactMode = useCallback(() => {
+        setActionMessage(null);
         if (redactMode) {
             setRedactMode(false);
-            setActionMessage('');
             return;
         }
         updateSettings({ previewMode: 'fit' });
         setRedactMode(true);
-        setActionMessage(t('canvas.maskMessage'));
-    }, [redactMode, updateSettings, t]);
+    }, [redactMode, updateSettings]);
 
     const showPreview = Boolean(canvasUrl) && !error;
     const hasResult = showPreview && !isGenerating;
@@ -597,9 +600,16 @@ const StitchCanvas = ({ images, settings, onSettingsChange, onResetSettings, ses
                 </p>
 
                 <p className="visually-hidden" role="status" aria-live="polite">
-                    {actionMessage}
+                    {actionMessageText}
                 </p>
-                {actionMessage && <p className="action-message" aria-hidden="true">{actionMessage}</p>}
+                {actionMessage && (
+                    <p
+                        className={`action-message${actionMessage.tone === 'error' ? ' action-message--error' : ''}`}
+                        aria-hidden="true"
+                    >
+                        {actionMessageText}
+                    </p>
+                )}
 
                 <div className="action-buttons">
                     <button
