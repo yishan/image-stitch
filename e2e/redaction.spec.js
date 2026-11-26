@@ -40,6 +40,39 @@ test('Mask instructions stay in the toolbar, not over the result', async ({ page
   expect(hintBox.y + hintBox.height).toBeLessThanOrEqual(imageBox.y);
 });
 
+for (const colorScheme of ['light', 'dark']) {
+  test(`Active Colour block stays readable on hover (${colorScheme})`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chromium', 'requires a fine pointer');
+    await page.emulateMedia({ colorScheme });
+    await gotoApp(page);
+    await uploadScreens(page, 2);
+    await waitForResult(page);
+    await page.getByRole('button', { name: '打码', exact: true }).click();
+
+    const button = page.getByRole('button', { name: '色块', exact: true });
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    await button.hover();
+
+    const contrast = await button.evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished));
+      const { color, backgroundColor } = getComputedStyle(element);
+      const luminance = (rgb) => {
+        const [r, g, b] = rgb.match(/[\d.]+/g).slice(0, 3).map((value) => {
+          const channel = Number(value) / 255;
+          return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+      const foreground = luminance(color);
+      const background = luminance(backgroundColor);
+      return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+    });
+
+    expect(contrast).toBeGreaterThanOrEqual(4.5);
+  });
+}
+
 test.describe('X4 · 本地打码', () => {
   runOnlyIn('desktop-chromium');
 
