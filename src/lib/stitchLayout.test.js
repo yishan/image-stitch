@@ -26,12 +26,12 @@ test('direct stitch mode keeps each image at its original size and centres it', 
     assert.equal(plan.totalHeight, 100);
     assert.equal(plan.seamShadows.length, 0);
     assert.deepEqual(
-        plan.placements.map(({ x, y, width, height, topEdge, rightEdge, bottomEdge, leftEdge }) => ({
+        plan.placements.map(({ x, y, width, height, topEdges, rightEdges, bottomEdges, leftEdges }) => ({
             x,
             y,
             width,
             height,
-            hasWaveEdge: Boolean(topEdge || rightEdge || bottomEdge || leftEdge)
+            hasWaveEdge: [topEdges, rightEdges, bottomEdges, leftEdges].some((edges) => edges?.length > 0)
         })),
         [
             { x: 0, y: 0, width: 100, height: 50, hasWaveEdge: false },
@@ -120,11 +120,11 @@ test('both sides of a wave share the same phase and overlap bounds', async () =>
     const span = ({ phase, from, to }) => ({ phase, from, to });
     const verticalSpan = { phase: 10, from: 310.5, to: 910.5 };
     const horizontalSpan = { phase: 10, from: 260.5, to: 760.5 };
-    assert.deepEqual(span(vertical.placements[0].bottomEdge), verticalSpan);
-    assert.deepEqual(span(vertical.placements[1].topEdge), verticalSpan);
+    assert.deepEqual(vertical.placements[0].bottomEdges.map(span), [verticalSpan]);
+    assert.deepEqual(vertical.placements[1].topEdges.map(span), [verticalSpan]);
     assert.deepEqual(span(vertical.seamShadows[0]), verticalSpan);
-    assert.deepEqual(span(horizontal.placements[0].rightEdge), horizontalSpan);
-    assert.deepEqual(span(horizontal.placements[1].leftEdge), horizontalSpan);
+    assert.deepEqual(horizontal.placements[0].rightEdges.map(span), [horizontalSpan]);
+    assert.deepEqual(horizontal.placements[1].leftEdges.map(span), [horizontalSpan]);
     assert.deepEqual(span(horizontal.seamShadows[0]), horizontalSpan);
 });
 
@@ -139,8 +139,8 @@ test('seam strength scales the wave amplitude', async () => {
     const regular = createStitchPlan(images, { direction: 'vertical', seamStrength: 'regular' });
     const bold = createStitchPlan(images, { direction: 'vertical', seamStrength: 'bold' });
 
-    assert.ok(fine.placements[0].bottomEdge.amplitude < regular.placements[0].bottomEdge.amplitude);
-    assert.ok(bold.placements[0].bottomEdge.amplitude > regular.placements[0].bottomEdge.amplitude);
+    assert.ok(fine.placements[0].bottomEdges[0].amplitude < regular.placements[0].bottomEdges[0].amplitude);
+    assert.ok(bold.placements[0].bottomEdges[0].amplitude > regular.placements[0].bottomEdges[0].amplitude);
 });
 
 test('wave stitch mode remains the default', async () => {
@@ -153,8 +153,8 @@ test('wave stitch mode remains the default', async () => {
     const plan = createStitchPlan(images, { direction: 'vertical' });
 
     assert.equal(plan.seamShadows.length, 1);
-    assert.ok(plan.placements[0].bottomEdge);
-    assert.ok(plan.placements[1].topEdge);
+    assert.equal(plan.placements[0].bottomEdges.length, 1);
+    assert.equal(plan.placements[1].topEdges.length, 1);
 });
 
 test('wave metrics stay compact and dense across image resolutions', async () => {
@@ -186,7 +186,31 @@ test('collage mode draws each shared seam shadow only once', async () => {
 
     const plan = createStitchPlan(images, { direction: 'collage', showWave: true });
 
-    assert.equal(plan.seamShadows.length, 5);
+    assert.equal(plan.seamShadows.length, 7);
+    assert.equal(new Set(plan.seamShadows.map(({ orientation, x, y, from, to }) => (
+        [orientation, x, y, from, to].join(':')
+    ))).size, 7);
+});
+
+test('collage wave segments match across adjacent images but stop at exposed edges and gaps', async () => {
+    const { createStitchPlan } = await loadLayoutModule();
+    const images = [[300, 100], [60, 60], [100, 100], [80, 90], [80, 40], [80, 90]]
+        .map(([width, height]) => ({ width, height }));
+    const { placements, seamShadows } = createStitchPlan(images, { direction: 'collage', gap: 10, margin: 5 });
+    const [upperLeft, upperMiddle, upperRight, lowerLeft, lowerMiddle, lowerRight] = placements;
+    const verticalSpan = ({ x, phase, from, to }) => [x, phase, from, to];
+    const horizontalSpan = ({ y, phase, from, to }) => [y, phase, from, to];
+
+    assert.deepEqual(upperLeft.rightEdges.map(verticalSpan), [[305, 5, 25, 85]]);
+    assert.deepEqual(upperMiddle.leftEdges.map(verticalSpan), [[315, 5, 25, 85]]);
+    assert.deepEqual(upperLeft.bottomEdges.map(horizontalSpan), [[105, 5, 115, 195], [105, 5, 295, 305]]);
+    assert.deepEqual(lowerLeft.topEdges.map(horizontalSpan), [[115, 5, 115, 195]]);
+    assert.deepEqual(lowerRight.topEdges.map(horizontalSpan), [[115, 5, 295, 305]]);
+    assert.deepEqual(upperMiddle.bottomEdges, []);
+    assert.deepEqual(upperRight.bottomEdges, []);
+    assert.deepEqual(lowerMiddle.topEdges, []);
+    assert.deepEqual(seamShadows.filter((edge) => edge.orientation === 'horizontal').map(horizontalSpan),
+        upperLeft.bottomEdges.map(horizontalSpan));
 });
 
 test('rotation swaps the placement dimensions', async () => {
