@@ -64,11 +64,17 @@ const withDatabase = async (work) => {
 };
 
 /** Pure guard for records read from IndexedDB (also used by tests). */
-export const normalizeStoredImages = (records) => {
+export const normalizeStoredImages = (records, order) => {
     if (!Array.isArray(records)) return [];
-    return records
-        .filter((record) => record && typeof record.id === 'string' && record.blob)
-        .sort((first, second) => (Number(first.index) || 0) - (Number(second.index) || 0))
+    const validRecords = records.filter((record) => record && typeof record.id === 'string' && record.blob);
+    const recordsById = new Map(validRecords.map((record) => [record.id, record]));
+    const ordered = Array.isArray(order)
+        ? order.flatMap((entry) => {
+            const record = recordsById.get(entry?.id);
+            return record ? [{ ...record, transform: entry.transform }] : [];
+        })
+        : validRecords.sort((first, second) => (Number(first.index) || 0) - (Number(second.index) || 0));
+    return ordered
         .slice(0, MAX_SESSION_IMAGES)
         .map((record, index) => ({
             id: record.id,
@@ -90,29 +96,28 @@ export const saveSessionImages = (images) => enqueueImageWrite(async () => {
             const nextSnapshot = new Map();
             const done = transactionDone(transaction);
             const revisionRecord = await requestToPromise(settingsStore.get(IMAGE_REVISION_KEY));
-            if (revisionRecord?.value !== imageRevision) imageSnapshot = null;
+            if ((revisionRecord?.value ?? null) !== imageRevision) imageSnapshot = null;
             const nextRevision = crypto.randomUUID();
             if (!imageSnapshot) store.clear();
             images.forEach((image, index) => {
-                const transform = normalizeTransform(image.transform);
-                const signature = JSON.stringify([index, transform]);
-                const previous = imageSnapshot?.get(image.id);
-                nextSnapshot.set(image.id, { signature, file: image.file });
-                if (previous?.signature === signature && previous.file === image.file) return;
+                nextSnapshot.set(image.id, image.file);
+                if (imageSnapshot?.get(image.id) === image.file) return;
                 store.put({
                     id: image.id,
-                    index,
                     name: image.file?.name || `image-${index + 1}.png`,
                     type: image.file?.type || 'image/png',
                     lastModified: image.file?.lastModified || Date.now(),
-                    blob: image.file,
-                    transform
+                    blob: image.file
                 });
             });
             imageSnapshot?.forEach((_, id) => {
                 if (!nextSnapshot.has(id)) store.delete(id);
             });
-            settingsStore.put({ id: IMAGE_REVISION_KEY, value: nextRevision });
+            settingsStore.put({
+                id: IMAGE_REVISION_KEY,
+                value: nextRevision,
+                order: images.map(({ id, transform }) => ({ id, transform: normalizeTransform(transform) }))
+            });
             await done;
             imageSnapshot = nextSnapshot;
             imageRevision = nextRevision;
@@ -144,8 +149,18 @@ export const loadSession = async () => {
     try {
         return await withDatabase(async (database) => {
             const transaction = database.transaction([IMAGE_STORE, SETTINGS_STORE], 'readonly');
-            const images = normalizeStoredImages(await requestToPromise(transaction.objectStore(IMAGE_STORE).getAll()));
-            const settingsRecord = await requestToPromise(transaction.objectStore(SETTINGS_STORE).get(SETTINGS_KEY));
+            const settingsStore = transaction.objectStore(SETTINGS_STORE);
+            const [records, revisionRecord, settingsRecord] = await Promise.all([
+                requestToPromise(transaction.objectStore(IMAGE_STORE).getAll()),
+                requestToPromise(settingsStore.get(IMAGE_REVISION_KEY)),
+                requestToPromise(settingsStore.get(SETTINGS_KEY))
+            ]);
+            const images = normalizeStoredImages(records, revisionRecord?.order).map((record) => ({
+                ...record,
+                file: new File([record.blob], record.name, { type: record.type, lastModified: record.lastModified })
+            }));
+            imageSnapshot = new Map(images.map(({ id, file }) => [id, file]));
+            imageRevision = revisionRecord?.value ?? null;
             const hasSettings = Boolean(settingsRecord?.value);
             if (images.length === 0 && !hasSettings) return null;
             return {
@@ -160,6 +175,7 @@ export const loadSession = async () => {
 
 export const clearSession = () => enqueueImageWrite(async () => {
     imageSnapshot = null;
+    imageRevision = null;
     try {
         return await withDatabase(async (database) => {
             const transaction = database.transaction([IMAGE_STORE, SETTINGS_STORE], 'readwrite');
